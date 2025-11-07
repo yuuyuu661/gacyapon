@@ -1,0 +1,16 @@
+body { font-family: system-ui, sans-serif; background: #fff; margin: 0; text-align: center; }
+header { background: #ffb6c1; padding: 10px; }
+nav button { margin: 0 6px; }
+.tab { display: none; }
+.tab.active { display: block; }
+.gacha-center { margin-top: 20px; }
+.roll-btn {
+  padding: 10px 24px;
+  background: #ff3571;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+}
+.hidden { display: none; }
