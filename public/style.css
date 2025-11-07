@@ -1,0 +1,32 @@
+body { font-family: system-ui, sans-serif; background: #fff; margin: 0; }
+header { background: #ffb6c1; padding: 10px; text-align:center; }
+nav { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+nav button { margin: 0 6px; padding:8px 12px; border-radius:8px; border:1px solid #e08aa0; background:#fff; cursor:pointer; }
+.tab { display: none; padding: 16px; max-width: 960px; margin: 0 auto; }
+.tab.active { display: block; }
+.gacha-center { margin-top: 20px; text-align:center; }
+.gacha-stage { display:flex; justify-content:center; align-items:center; gap:12px; }
+.roll-btn {
+  padding: 10px 24px;
+  background: #ff3571;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+}
+.hidden { display: none; }
+
+.field-label { display:block; font-weight:700; margin:12px 0 6px; }
+.form-grid { display:grid; grid-template-columns: minmax(240px, 1fr); gap: 8px 16px; }
+.form-row input, .form-row select { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
+.checkbox { display:flex; align-items:center; gap:8px; }
+.hint { color:#555; font-size:12px; }
+
+.collection { list-style:none; padding:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+.collection li { border:1px solid #eee; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.collection .meta { font-size:12px; color:#555; }
+.collection video { width:100%; border-radius:8px; }
+
+.serial-inline { display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; }
+.serial-inline input { padding:8px 12px; border:1px solid #ddd; border-radius:8px; }
