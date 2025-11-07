@@ -25,4 +25,4 @@ $('#btn-issue-serial')?.addEventListener('click', async ()=>{
   }
 });
 
-})();
+})(); // ← これが一番最後に必要！
