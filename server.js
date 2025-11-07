@@ -92,7 +92,7 @@ app.post('/api/redeem-serial',(req,res)=>{
   const d=db.prepare('SELECT device_id FROM devices WHERE device_id=?').get(deviceId);
   if(!d) db.prepare('INSERT INTO devices(device_id,spins) VALUES (?,0)').run(deviceId);
   db.prepare('UPDATE devices SET spins=spins+? WHERE device_id=?').run(row.spins, deviceId);
-  db.prepare('UPDATE serials SET used=1, used_by_device=?, used_at=datetime(''now'') WHERE code=?').run(deviceId, code);
+  db.prepare(`UPDATE serials SET used=1, used_by_device=?, used_at=datetime('now') WHERE code=?`).run(deviceId, code);
   const spins=db.prepare('SELECT spins FROM devices WHERE device_id=?').get(deviceId).spins;
   res.json({ok:true, added:row.spins, spins});
 });
