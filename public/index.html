@@ -11,6 +11,7 @@
   <h1>ガチャポン管理サイト</h1>
   <nav>
     <button data-tab="gacha">ガチャポン</button>
+    <button data-tab="collection">マイコレクション</button> <!-- ✅追加 -->
     <button data-tab="serial">シリアル番号発行所</button>
     <button data-tab="stock">景品入荷</button>
   </nav>
@@ -26,54 +27,46 @@
       </div>
       <button id="btn-roll" class="roll-btn">回す！</button>
       <p>残り回数: <span id="spins">0</span></p>
+
       <div>
         <input id="serial" placeholder="シリアル番号">
         <button id="btn-redeem">回数を追加</button>
       </div>
+
       <video id="result-video" class="hidden" playsinline></video>
     </div>
   </section>
 
-  <!-- シリアル発行 -->
+  <!-- ✅マイコレクション追加 -->
+  <section id="tab-collection" class="tab">
+    <h2>マイコレクション</h2>
+    <ul id="collection-list"></ul>
+  </section>
+
+  <!-- シリアル番号発行所 -->
   <section id="tab-serial" class="tab">
     <h2>シリアル番号発行</h2>
-    <div class="admin-login">
-      <input id="admin-pass-serial" type="password" placeholder="管理パスワード">
-      <button id="btn-admin-login-serial">ログイン</button>
-      <span id="admin-status-serial"></span>
-    </div>
-
-    <div id="serial-admin-area" class="admin-area hidden">
-      <input id="serial-code" placeholder="シリアル番号">
-      <input id="serial-spins" type="number" value="1" min="1">
-      <label><input type="checkbox" id="serial-reissue">再発行を許可</label>
-      <button id="btn-issue-serial">発行</button>
-    </div>
+    <input id="serial-code" placeholder="シリアル番号">
+    <input id="serial-spins" type="number" value="1" min="1">
+    <label><input type="checkbox" id="serial-reissue">再発行を許可</label>
+    <button id="btn-issue-serial">発行</button>
   </section>
 
   <!-- 景品入荷 -->
   <section id="tab-stock" class="tab">
     <h2>景品入荷</h2>
-    <div class="admin-login">
-      <input id="admin-pass-stock" type="password" placeholder="管理パスワード">
-      <button id="btn-admin-login-stock">ログイン</button>
-      <span id="admin-status-stock"></span>
-    </div>
-
-    <div id="stock-admin-area" class="admin-area hidden">
-      <form id="form-prize" enctype="multipart/form-data">
-        <input name="title" placeholder="タイトル" required>
-        <input name="percent" type="number" min="0" value="0" placeholder="確率(%)" required>
-        <select name="rarity">
-          <option value="normal">normal</option>
-          <option value="common">common</option>
-          <option value="rare">rare</option>
-          <option value="superrare">superrare</option>
-        </select>
-        <input type="file" name="video" accept="video/*" required>
-        <button type="submit">登録</button>
-      </form>
-    </div>
+    <form id="form-prize" enctype="multipart/form-data">
+      <input name="title" placeholder="タイトル">
+      <input name="percent" placeholder="確率(%)">
+      <select name="rarity">
+        <option value="normal">normal</option>
+        <option value="common">common</option>
+        <option value="rare">rare</option>
+        <option value="superrare">superrare</option>
+      </select>
+      <input type="file" name="video" accept="video/*">
+      <button type="submit">登録</button>
+    </form>
   </section>
 </main>
 
