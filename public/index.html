@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ガチャポン</title><link rel="stylesheet" href="/style.css"/></head>
+<body>
+<header class="site-header"><h1>ガチャポン</h1>
+<nav class="tabs"><button class="tab-btn active" data-tab="gacha">ガチャポン</button><button class="tab-btn" data-tab="serials">シリアル番号発行所</button><button class="tab-btn" data-tab="inventory">景品入荷</button></nav></header>
+<main>
+<section id="tab-gacha" class="tab active">
+  <div class="gacha-center">
+    <div class="gacha-stage">
+      <img id="gacha-illust" src="/assets/gachapon.png" alt="gachapon"/>
+      <video id="rarity-anim" class="hidden" playsinline></video>
+      <video id="result-video" class="hidden" controls playsinline></video>
+      <audio id="rarity-sfx" preload="auto"></audio>
+    </div>
+    <button id="btn-roll" class="roll-btn">回す！</button>
+    <div class="spins-inline">残り回数: <span id="spins">0</span></div>
+    <div class="redeem-inline"><input id="serial" placeholder="シリアル番号"/><button id="btn-redeem">回数を追加</button></div>
+  </div>
+  <div class="collection"><h2>マイコレクション</h2><div id="collection-list" class="collection-list"></div></div>
+</section>
+<section id="tab-serials" class="tab">
+  <div class="admin-login" id="serials-login"><h2>管理ログイン</h2><input id="admin-password-serial" type="password" placeholder="管理パスワード"/><button data-login-target="serials">ログイン</button></div>
+  <div class="admin-area hidden" id="serials-area">
+    <h2>シリアル番号の発行</h2>
+    <div class="grid">
+      <label>追加回数<input id="serial-spins" type="number" min="1" value="1"></label>
+      <label>シリアル番号<input id="serial-code" type="text" placeholder="例: OPEN2025 or お好きな文字列"></label>
+      <label><input id="serial-reissue" type="checkbox"> 同じコードを再発行（上書き）</label>
+    </div>
+    <button id="btn-issue-serial">発行</button>
+    <div class="note">※発行されたシリアルは1回きりで消費されます。</div>
+  </div>
+</section>
+<section id="tab-inventory" class="tab">
+  <div class="admin-login" id="inventory-login"><h2>管理ログイン</h2><input id="admin-password-inv" type="password" placeholder="管理パスワード"/><button data-login-target="inventory">ログイン</button></div>
+  <div class="admin-area hidden" id="inventory-area">
+    <h2>景品リスト</h2>
+    <div class="note">※動画はアップロードしてください。合計確率は100%を推奨。</div>
+    <table class="prize-table" id="prize-table"><thead><tr><th>タイトル</th><th>動画</th><th>確率(%)</th><th>レア度</th><th>ON</th><th></th></tr></thead><tbody id="prize-body"></tbody>
+      <tfoot><tr>
+        <td><input id="new-title" placeholder="新規タイトル"></td>
+        <td><input id="new-file" type="file" accept="video/*"></td>
+        <td><input id="new-percent" type="number" min="0" value="0"></td>
+        <td><select id="new-rarity"><option value="normal">normal</option><option value="common">common</option><option value="rare">rare</option><option value="superrare">superrare</option></select></td>
+        <td class="center">-</td><td><button id="add-prize">追加</button></td>
+      </tr></tfoot></table>
+    <div class="sum">合計：<span id="percent-sum">0</span>%</div><button id="save-prizes">保存</button>
+  </div>
+</section>
+</main><footer><small>© Gachapon</small></footer>
+<script src="/app.js"></script></body></html>
