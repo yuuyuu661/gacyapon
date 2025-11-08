@@ -1,0 +1,48 @@
+body { font-family: system-ui, sans-serif; background: #fff; margin: 0; }
+header { background: #ffb6c1; padding: 10px; }
+h1 { text-align:center; margin:0 0 8px; }
+.topbar { display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; }
+nav { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+nav button { margin: 0 6px; padding:8px 12px; border-radius:8px; border:1px solid #e08aa0; background:#fff; cursor:pointer; }
+.admin-actions button { padding:8px 12px; border-radius:8px; border:1px solid #aaa; background:#fff; cursor:pointer; }
+
+.tab { display: none; padding: 16px; max-width: 1100px; margin: 0 auto; }
+.tab.active { display: block; }
+.gacha-center { margin-top: 20px; text-align:center; }
+.gacha-stage { display:flex; justify-content:center; align-items:center; gap:12px; }
+.roll-btn { padding: 10px 24px; background: #ff3571; color: #fff; border: none; border-radius: 10px; font-size: 20px; cursor: pointer; }
+.hidden { display: none; }
+
+/* Cards for admin blocks */
+.card { border:1px solid #eee; border-radius:12px; padding:16px; margin: 8px 0 16px; background:#fff; }
+
+.field-label { display:block; font-weight:700; margin:12px 0 6px; }
+.form-grid { display:grid; grid-template-columns: minmax(260px, 1fr); gap: 8px 16px; }
+.form-row input, .form-row select { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
+.checkbox { display:flex; align-items:center; gap:8px; }
+.hint { color:#555; font-size:12px; }
+
+.collection { list-style:none; padding:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+.collection li { border:1px solid #eee; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.collection .meta { font-size:12px; color:#555; }
+.collection video { width:100%; border-radius:8px; }
+
+.serial-inline { display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; }
+.serial-inline input { padding:8px 12px; border:1px solid #ddd; border-radius:8px; }
+
+/* Prize list admin */
+.table { width:100%; border-collapse: collapse; margin-top: 12px; }
+.table th, .table td { border:1px solid #eee; padding:8px; vertical-align: top; text-align:left; }
+.table th { background:#fff5f7; white-space:nowrap; }
+.table input[type="text"], .table input[type="number"], .table select { width:100%; padding:6px; border:1px solid #ddd; border-radius:6px; }
+.table input[type="file"] { width:100%; }
+.badge { display:inline-block; padding:2px 6px; border-radius:6px; background:#f0f0f0; font-size:12px; }
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+button.secondary { background:#fff; border:1px solid #ccc; border-radius:8px; padding:6px 10px; cursor:pointer; }
+
+/* Admin visibility */
+.admin-only { display:none; }
+.admin-visible .admin-only { display:inline-block; }
+
+/* Admin 2-col grid */
+.grid-2 { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; }
