@@ -1,263 +1,217 @@
-// ====================
-// 定数
-// ====================
-const API = "";
+// =======================
+// 初期設定
+// =======================
 
-// 今回は固定ユーザー扱い（v7.6仕様）
-const USER = "default_user";
+// 現在アクティブなタブ
+let currentTab = "gacha";
 
-// DOM取得
-const spinCount = document.getElementById("spinCount");
-const spinBtn = document.getElementById("spinBtn");
-const spin10Btn = document.getElementById("spin10Btn");
+// ボタン取得
+const gachaTab = document.getElementById("tab-gacha");
+const collectionTab = document.getElementById("tab-collection");
+const adminTab = document.getElementById("tab-admin");
 
+// 画面
+const gachaSection = document.getElementById("section-gacha");
+const collectionSection = document.getElementById("section-collection");
+const adminSection = document.getElementById("section-admin");
+
+// ガチャ画面Elements
+const spinsDisplay = document.getElementById("spinsDisplay");
 const serialInput = document.getElementById("serialInput");
-const addSpinBtn = document.getElementById("addSpinBtn");
+const serialAddBtn = document.getElementById("serialAddBtn");
+const spinButton = document.getElementById("spinButton");
+const spin10Button = document.getElementById("spin10Button");
+const resultVideo = document.getElementById("resultVideo");
+const resultText = document.getElementById("resultText");
 
-const resultArea = document.getElementById("resultArea");
-const effectVideo = document.getElementById("effectVideo");
-const prizeVideo = document.getElementById("prizeVideo");
-const duplicateImg = document.getElementById("duplicateImg");
+// 管理画面Elements
+const adminLoginBtn = document.getElementById("adminLoginBtn");
+const adminPassInput = document.getElementById("adminPass");
+const adminMenu = document.getElementById("adminMenu");
 
-const collectionContainer = document.getElementById("collectionContainer");
+// =======================
+// ユーザー名の生成（匿名）
+// =======================
+let savedUser = localStorage.getItem("gacha_user");
 
-const adminPassBtn = document.getElementById("adminPassBtn");
-const adminPassInput = document.getElementById("adminPassInput");
-const adminContent = document.getElementById("adminContent");
+if (!savedUser) {
+    const r = Math.floor(Math.random() * 999999);
+    savedUser = "user_" + r;
+    localStorage.setItem("gacha_user", savedUser);
+}
 
-const uploadPrizeBtn = document.getElementById("uploadPrizeBtn");
-const prizeFile = document.getElementById("prizeFile");
-const prizeRarity = document.getElementById("prizeRarity");
-const prizeList = document.getElementById("prizeList");
+function getUser() {
+    return savedUser;
+}
 
-// ====================
-// 効果音
-// ====================
-const SE = {
-  superrare: new Audio("effects/audio/superrare.mp3"),
-  rare: new Audio("effects/audio/rare.mp3"),
-  common: new Audio("effects/audio/common.mp3"),
-  normal: new Audio("effects/audio/normal.mp3"),
-};
+// =======================
+// タブ切り替え
+// =======================
+function showTab(tab) {
+    currentTab = tab;
 
-// ====================
-// 初期読み込み
-// ====================
-loadSpins();
-loadCollection();
-loadPrizeList();
+    gachaSection.style.display = tab === "gacha" ? "block" : "none";
+    collectionSection.style.display = tab === "collection" ? "block" : "none";
+    adminSection.style.display = tab === "admin" ? "block" : "none";
 
-// ====================
-// 残り回数取得
-// ====================
+    gachaTab.classList.toggle("active", tab === "gacha");
+    collectionTab.classList.toggle("active", tab === "collection");
+    adminTab.classList.toggle("active", tab === "admin");
+
+    if (tab === "gacha") loadSpins();
+    if (tab === "collection") loadCollection();
+}
+
+// 初期表示
+showTab("gacha");
+
+// =======================
+// API: 回数の読み込み
+// =======================
 async function loadSpins() {
-  const res = await fetch(`/api/spins?user=${USER}`);
-  const data = await res.json();
-  spinCount.textContent = `残り回数：${data.spins}`;
+    try {
+        const user = getUser();
+        const res = await fetch(`/api/spins?user=${user}`);
+        const json = await res.json();
+
+        spinsDisplay.textContent = json.spins;
+    } catch (err) {
+        console.error("loadSpins error:", err);
+    }
 }
 
-// ====================
-// 回数追加（シリアル）
-// ====================
-addSpinBtn.addEventListener("click", async () => {
-  const code = serialInput.value.trim();
-  if (!code) return alert("コードを入力してね");
+// =======================
+// API: シリアル入力 → 回数追加
+// =======================
+async function redeemSerial() {
+    const code = serialInput.value.trim();
+    if (!code) return;
 
-  // シリアルを登録する（v7.6仕様）
-  await fetch(`/api/addSerial`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
-  });
+    try {
+        const user = getUser();
+        const res = await fetch(`/api/spins`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user, serial: code })
+        });
 
-  // 使用する
-  const res = await fetch(`/api/useSerial`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user: USER, code }),
-  });
+        const json = await res.json();
 
-  const data = await res.json();
-  if (!res.ok) return alert(data.error);
+        if (!json.ok) {
+            alert(json.message || "追加できません");
+            return;
+        }
 
-  serialInput.value = "";
-  loadSpins();
-});
+        serialInput.value = "";
+        loadSpins();
 
-// ====================
-// ガチャボタン
-// ====================
-spinBtn.addEventListener("click", () => spin(1));
-spin10Btn.addEventListener("click", () => spin(10));
-
-// ====================
-// ガチャ本体
-// ====================
-async function spin(times) {
-  for (let i = 0; i < times; i++) {
-    await spinOnce();
-  }
-  loadSpins();
-  loadCollection();
+    } catch (err) {
+        console.error("redeemSerial error:", err);
+    }
 }
 
-// ====================
-// 1回ガチャ処理
-// ====================
+serialAddBtn.addEventListener("click", redeemSerial);
+
+// =======================
+// API: ガチャを1回回す
+// =======================
 async function spinOnce() {
-  const res = await fetch(`/api/spin`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user: USER }),
-  });
+    try {
+        const user = getUser();
 
-  const data = await res.json();
-  if (!res.ok) {
-    alert(data.error);
-    return;
-  }
+        const res = await fetch(`/api/spin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user })
+        });
 
-  const prize = data.prize;
+        const json = await res.json();
+        if (!json.ok) {
+            alert(json.message || "ガチャが回せません");
+            return;
+        }
 
-  // 表示エリア初期化
-  effectVideo.style.display = "none";
-  prizeVideo.style.display = "none";
-  duplicateImg.style.display = "none";
+        // 動画再生
+        if (json.video) {
+            resultVideo.src = json.video;
+            resultVideo.style.display = "block";
+            resultVideo.play();
+        }
 
-  // 演出動画を再生（v7.6は rarity.mp4 のみ）
-  effectVideo.src = `effects/video/${prize.rarity}.mp4`;
-  effectVideo.style.display = "block";
-  effectVideo.play();
+        resultText.textContent = json.name || "";
+        loadSpins();
 
-  // 効果音は 1秒遅らせて再生
-  setTimeout(() => {
-    SE[prize.rarity]?.play();
-  }, 1000);
-
-  // 演出終了待ち
-  await new Promise(resolve => {
-    effectVideo.onended = resolve;
-  });
-  effectVideo.style.display = "none";
-
-  // 新規動画
-  if (!isDuplicate(prize.id)) {
-    prizeVideo.src = prize.video;
-    prizeVideo.style.display = "block";
-    prizeVideo.play();
-    await new Promise(resolve => (prizeVideo.onended = resolve));
-    prizeVideo.style.display = "none";
-  }
-
-  // 被り → サムネ2秒表示
-  else {
-    duplicateImg.src = prize.thumbnail;
-    duplicateImg.style.display = "block";
-    await wait(2000);
-    duplicateImg.style.display = "none";
-  }
+    } catch (err) {
+        console.error("spinOnce error:", err);
+    }
 }
 
-// 被りチェック
-function isDuplicate(id) {
-  const imgs = document.querySelectorAll(".collection-thumb");
-  return [...imgs].some(img => img.dataset.id == id);
-}
+spinButton.addEventListener("click", spinOnce);
 
-// 待機関数
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+// =======================
+// API: ガチャ10連
+// =======================
+async function spinTen() {
+    const remain = Number(spinsDisplay.textContent);
+    if (remain < 10) {
+        alert("回数が足りません (10回必要です)");
+        return;
+    }
 
-// ====================
-// マイコレ読み込み
-// ====================
+    for (let i = 0; i < 10; i++) {
+        await spinOnce();
+        await new Promise(r => setTimeout(r, 300));
+    }
+}
+spin10Button.addEventListener("click", spinTen);
+
+// =======================
+// API: マイコレ(景品一覧)
+// =======================
 async function loadCollection() {
-  const res = await fetch(`/api/collection?user=${USER}`);
-  const data = await res.json();
+    try {
+        const user = getUser();
+        const res = await fetch(`/api/collection?user=${user}`);
+        const json = await res.json();
 
-  collectionContainer.innerHTML = "";
-  data.forEach(p => {
-    const wrap = document.createElement("div");
-    wrap.className = "collection-item";
+        const list = document.getElementById("collectionList");
+        list.innerHTML = "";
 
-    const img = document.createElement("img");
-    img.src = p.thumbnail;
-    img.dataset.id = p.id;
-    img.className = "collection-thumb";
-    img.style.cursor = "pointer";
+        json.items.forEach(it => {
+            const div = document.createElement("div");
+            div.className = "collection-item";
+            div.textContent = `${it.name} × ${it.count}`;
+            list.appendChild(div);
+        });
 
-    img.addEventListener("click", () => {
-      prizeVideo.src = p.video;
-      prizeVideo.style.display = "block";
-      prizeVideo.play();
-      prizeVideo.onended = () => {
-        prizeVideo.style.display = "none";
-      };
-    });
-
-    wrap.appendChild(img);
-    collectionContainer.appendChild(wrap);
-  });
+    } catch (err) {
+        console.error("loadCollection error:", err);
+    }
 }
 
-// ====================
-// 管理パスワード
-// ====================
-adminPassBtn.addEventListener("click", () => {
-  if (adminPassInput.value === "admin123") {
-    adminContent.style.display = "block";
-  } else {
-    alert("パスワードが違います");
-  }
-});
+// =======================
+// 管理ログイン
+// =======================
+adminLoginBtn.addEventListener("click", async () => {
+    const pass = adminPassInput.value.trim();
+    if (!pass) return;
 
-// ====================
-// 景品登録
-// ====================
-uploadPrizeBtn.addEventListener("click", async () => {
-  const file = prizeFile.files[0];
-  if (!file) return alert("動画を選んでね");
+    try {
+        const res = await fetch("/api/admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pass })
+        });
 
-  const fd = new FormData();
-  fd.append("video", file);
-  fd.append("rarity", prizeRarity.value);
+        const json = await res.json();
+        if (!json.ok) {
+            alert("パスワードが違います");
+            return;
+        }
 
-  const res = await fetch(`/api/admin/prizes`, {
-    method: "POST",
-    body: fd,
-  });
+        adminMenu.style.display = "block";
 
-  const data = await res.json();
-  if (!res.ok) return alert(data.error);
-
-  loadPrizeList();
-});
-
-// 景品一覧
-async function loadPrizeList() {
-  const res = await fetch(`/api/admin/prizes`);
-  const data = await res.json();
-
-  prizeList.innerHTML = "";
-  data.forEach(p => {
-    const img = document.createElement("img");
-    img.src = p.thumbnail;
-    img.className = "prize-thumb";
-    prizeList.appendChild(img);
-  });
-}
-
-// ====================
-// タブ切替（v7.6仕様）
-// ====================
-document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const tab = btn.dataset.tab;
-
-    document.querySelectorAll(".tab-page").forEach(p => (p.style.display = "none"));
-    document.getElementById(tab).style.display = "block";
-
-    if (tab === "mycollection") loadCollection();
-  });
+    } catch (err) {
+        console.error("adminLogin error:", err);
+    }
 });
