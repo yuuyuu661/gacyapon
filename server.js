@@ -7,6 +7,10 @@ import fileUpload from "express-fileupload";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 //------------------------------------------------------------
 // Express 基本設定
@@ -21,42 +25,44 @@ app.use(fileUpload());
 //------------------------------------------------------------
 // ★ 永続化フォルダ設定（Railway でも消えない）
 //------------------------------------------------------------
-const DATA_DIR = "./";  // ← これが決定打（永続化される）
+const DATA_DIR = __dirname; // ← 必ず永続化される
 
 //------------------------------------------------------------
-// ▼ public/prizes フォルダを必ず作成（Railway対策）
+// ▼ public/prizes フォルダを作成
 //------------------------------------------------------------
-const PUBLIC_DIR = "./public";
-const PRIZE_DIR = "./public/prizes";
+const PUBLIC_DIR = path.join(__dirname, "public");
+const PRIZE_DIR = path.join(__dirname, "public/prizes");
+const EFFECT_DIR = path.join(__dirname, "public/effects");
 
 if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR);
-if (!fs.existsSync(PRIZE_DIR)) fs.mkdirSync(PRIZE_DIR);
+if (!fs.existsSync(PRIZE_DIR)) fs.mkdirSync(PRIZE_DIR, { recursive: true });
+if (!fs.existsSync(EFFECT_DIR)) fs.mkdirSync(EFFECT_DIR, { recursive: true });
 
 // 公開フォルダ
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
 
 //------------------------------------------------------------
 // JSON  LOAD / SAVE
 //------------------------------------------------------------
 function load(file, fallback) {
     try {
-        return JSON.parse(fs.readFileSync(`${DATA_DIR}/${file}`, "utf8"));
+        return JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), "utf8"));
     } catch {
         return fallback;
     }
 }
 
 function save(file, data) {
-    fs.writeFileSync(`${DATA_DIR}/${file}`, JSON.stringify(data, null, 2));
+    fs.writeFileSync(path.join(DATA_DIR, file), JSON.stringify(data, null, 2));
 }
 
 //------------------------------------------------------------
 // データロード
 //------------------------------------------------------------
-let devices     = load("devices.json", {});       // deviceId → spins
-let prizes      = load("prizes.json", []);        // 景品
-let collections = load("collections.json", []);   // マイコレ
-let serials     = load("serials.json", []);       // シリアル
+let devices     = load("devices.json", {});
+let prizes      = load("prizes.json", []);
+let collections = load("collections.json", []);
+let serials     = load("serials.json", []);
 let rates       = load("rates.json", {
     superrare: 2,
     rare: 20,
@@ -84,6 +90,7 @@ app.post("/api/admin/login", (req, res) => {
 //------------------------------------------------------------
 app.get("/api/device", (req, res) => {
     const id = req.query.deviceId;
+    if (!id) return res.status(400).json({ ok: false });
 
     if (!devices[id]) devices[id] = { spins: 0 };
 
@@ -93,13 +100,14 @@ app.get("/api/device", (req, res) => {
 
 //------------------------------------------------------------
 // ▼ シリアル「使用」
-//   - 同名でも複数発行OK
-//   - 最新の未使用コードを優先使用
 //------------------------------------------------------------
 app.post("/api/redeem-serial", (req, res) => {
     const { code, deviceId } = req.body;
 
-    // 最新の未使用コードを抽出
+    if (!code || !deviceId)
+        return res.json({ ok: false, error: "必要項目不足" });
+
+    // 同じ番号でも最新の未使用コードを利用
     const s = serials
         .filter(x => x.code === code && !x.used)
         .sort((a, b) => b.id - a.id)[0];
@@ -122,17 +130,16 @@ app.post("/api/redeem-serial", (req, res) => {
 });
 
 //------------------------------------------------------------
-// ▼ シリアル「発行」（同じ文字でも無限に発行OK）
+// ▼ シリアル発行
 //------------------------------------------------------------
 app.post("/api/admin/serials/issue", (req, res) => {
     const { code, spins } = req.body;
 
-    if (!code || !spins) {
-        return res.status(400).json({ ok: false, error: "必要項目が空です" });
-    }
+    if (!code || !spins)
+        return res.json({ ok: false, error: "必要項目が空です" });
 
     serials.push({
-        id: Date.now(),  // ← ユニークID
+        id: Date.now(),
         code,
         spins,
         used: false,
@@ -140,11 +147,10 @@ app.post("/api/admin/serials/issue", (req, res) => {
     });
 
     save("serials.json", serials);
-
     res.json({ ok: true });
 });
 
-// 直近ログ10件
+// 直近10件
 app.get("/api/admin/serials", (req, res) => {
     res.json(serials.slice(-10).reverse());
 });
@@ -157,25 +163,23 @@ app.get("/api/admin/prizes", (req, res) => {
 });
 
 //------------------------------------------------------------
-// ▼ 景品登録（動画アップロード）
-//   public/prizes/ に保存される（永続化OK）
+// ▼ 景品アップロード
 //------------------------------------------------------------
 app.post("/api/admin/prizes", async (req, res) => {
     const file = req.files?.file;
     const rarity = req.body.rarity;
 
-    if (!file || !rarity) {
+    if (!file || !rarity)
         return res.json({ ok: false, error: "ファイルまたはレア度がありません" });
-    }
 
     const filename = `${Date.now()}_${file.name}`;
-    const savePath = `${PRIZE_DIR}/${filename}`;
+    const savePath = path.join(PRIZE_DIR, filename);
 
     try {
         await file.mv(savePath);
     } catch (err) {
-        console.error("File Upload Error:", err);
-        return res.json({ ok: false, error: "アップロードに失敗しました" });
+        console.error("Upload Error:", err);
+        return res.json({ ok: false, error: "アップロード失敗" });
     }
 
     prizes.push({
@@ -193,8 +197,8 @@ app.post("/api/admin/prizes", async (req, res) => {
 // ▼ マイコレ取得
 //------------------------------------------------------------
 app.get("/api/my-collection", (req, res) => {
-    const deviceId = req.query.deviceId;
-    const list = collections.filter(x => x.deviceId === deviceId);
+    const id = req.query.deviceId;
+    const list = collections.filter(x => x.deviceId === id);
     res.json(list);
 });
 
@@ -210,7 +214,6 @@ function getRarityByRate() {
     return "normal";
 }
 
-// ランダム景品取得
 function pickPrize(rarity) {
     const list = prizes.filter(p => p.rarity === rarity);
     if (list.length === 0) return null;
@@ -223,9 +226,8 @@ function pickPrize(rarity) {
 app.post("/api/spin", (req, res) => {
     const deviceId = req.body.deviceId;
 
-    if (!devices[deviceId] || devices[deviceId].spins <= 0) {
+    if (!devices[deviceId] || devices[deviceId].spins <= 0)
         return res.json({ ok: false, error: "回数がありません" });
-    }
 
     devices[deviceId].spins--;
     save("devices.json", devices);
@@ -260,7 +262,8 @@ app.post("/api/spin", (req, res) => {
             video_path: prize.video_path,
             url: prize.video_path,
             already
-        }
+        },
+        spins: devices[deviceId].spins
     });
 });
 
@@ -270,9 +273,8 @@ app.post("/api/spin", (req, res) => {
 app.post("/api/spin10", (req, res) => {
     const deviceId = req.body.deviceId;
 
-    if (!devices[deviceId] || devices[deviceId].spins < 10) {
+    if (!devices[deviceId] || devices[deviceId].spins < 10)
         return res.json({ ok: false, error: "回数が足りません" });
-    }
 
     devices[deviceId].spins -= 10;
     save("devices.json", devices);
@@ -317,7 +319,7 @@ app.post("/api/spin10", (req, res) => {
 
     save("collections.json", collections);
 
-    res.json({ ok: true, results });
+    res.json({ ok: true, results, spins: devices[deviceId].spins });
 });
 
 //------------------------------------------------------------
@@ -333,6 +335,8 @@ app.post("/api/admin/rates", (req, res) => {
     res.json({ ok: true });
 });
 
+//------------------------------------------------------------
+// Start
 //------------------------------------------------------------
 app.listen(PORT, () => {
     console.log("Gachapon server running on port", PORT);
