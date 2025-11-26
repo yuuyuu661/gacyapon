@@ -1,24 +1,25 @@
-import express from "express";
-import fs from "fs";
-import path from "path";
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(express.json());
 
 // ====================
-// データ保存
+// DB
 // ====================
 const DB_PATH = "./database.json";
 if (!fs.existsSync(DB_PATH)) {
-  fs.writeFileSync(DB_PATH, JSON.stringify({
-    users: {},
-    prizes: []   // 景品登録データ
-  }, null, 2));
+  fs.writeFileSync(
+    DB_PATH,
+    JSON.stringify({ users: {}, prizes: [] }, null, 2)
+  );
 }
 
 function loadDB() {
   return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
 }
+
 function saveDB(db) {
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
@@ -29,26 +30,33 @@ function saveDB(db) {
 app.use(express.static("public"));
 
 // ====================
-// 回数取得
+// スピン回数取得
 // ====================
 app.get("/api/spins", (req, res) => {
   const user = req.query.user;
   const db = loadDB();
+
   const spins = db.users[user]?.spins ?? 0;
+
   res.json({ spins });
 });
 
 // ====================
-// シリアルコード追加
+// シリアルコード → 回数追加
 // ====================
 app.post("/api/redeem-serial", (req, res) => {
   const { user, code } = req.body;
 
   const db = loadDB();
 
-  if (!db.users[user]) db.users[user] = { spins: 0, collection: [] };
+  if (!db.users[user]) {
+    db.users[user] = {
+      spins: 0,
+      collection: []
+    };
+  }
 
-  // 仮: 1回追加
+  // 仮で 1 回追加
   db.users[user].spins += 1;
 
   saveDB(db);
@@ -63,20 +71,31 @@ app.post("/api/spin", (req, res) => {
   const { user } = req.body;
   const db = loadDB();
 
-  if (!db.users[user]) db.users[user] = { spins: 0, collection: [] };
+  if (!db.users[user]) {
+    db.users[user] = {
+      spins: 0,
+      collection: []
+    };
+  }
 
+  // 回数チェック
   if (db.users[user].spins <= 0) {
     return res.status(400).json({ error: "回数がありません" });
   }
 
   db.users[user].spins--;
 
-  // ランダムに景品選ぶ
-  const prize = db.prizes[Math.floor(Math.random() * db.prizes.length)];
+  // ランダム景品
+  const prizes = db.prizes;
+  if (prizes.length === 0) {
+    return res.status(500).json({ error: "景品が設定されていません" });
+  }
 
-  const already = db.users[user].collection.includes(prize.id);
+  const prize = prizes[Math.floor(Math.random() * prizes.length)];
 
-  if (!already) {
+  const duplicate = db.users[user].collection.includes(prize.id);
+
+  if (!duplicate) {
     db.users[user].collection.push(prize.id);
   }
 
@@ -86,15 +105,15 @@ app.post("/api/spin", (req, res) => {
     prize: {
       id: prize.id,
       rarity: prize.rarity,
-      thumbnail: prize.thumbnail,
       video: prize.video,
-      duplicate: already
+      thumbnail: prize.thumbnail,
+      duplicate
     }
   });
 });
 
 // ====================
-// マイコレ一覧
+// マイコレ
 // ====================
 app.get("/api/collection", (req, res) => {
   const user = req.query.user;
@@ -102,14 +121,17 @@ app.get("/api/collection", (req, res) => {
 
   if (!db.users[user]) return res.json([]);
 
-  const col = db.users[user].collection.map(id => {
-    return db.prizes.find(p => p.id === id);
-  });
+  const list = db.users[user].collection.map((id) =>
+    db.prizes.find((p) => p.id === id)
+  );
 
-  res.json(col);
+  res.json(list);
 });
 
 // ====================
 // サーバー起動
 // ====================
-app.listen(3000, () => console.log("Server started"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Server started on port " + PORT);
+});
