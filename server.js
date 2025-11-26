@@ -209,3 +209,171 @@ app.post('/api/admin/prizes/delete', auth, (req, res) => {
   db.prepare(`DELETE FROM prizes WHERE id=?`).run(id);
   res.json({ ok: true });
 });
+/* --------------------------------------------
+    DEVICE / SERIAL
+-------------------------------------------- */
+
+/* 端末ごとのスピン数取得 */
+app.get('/api/device', (req, res) => {
+  const d = (req.query.deviceId || '').trim();
+  if (!d) return res.status(400).json({ error: 'deviceId required' });
+  db.prepare(`INSERT OR IGNORE INTO devices(device_id, spins) VALUES (?,0)`).run(d);
+  const row = db.prepare(`SELECT spins FROM devices WHERE device_id=?`).get(d);
+  res.json({ spins: row?.spins ?? 0 });
+});
+
+/* シリアル使用 */
+app.post('/api/redeem-serial', (req, res) => {
+  const { code, deviceId } = req.body;
+  if (!code || !deviceId) return res.status(400).json({ error: 'code and deviceId required' });
+
+  const row = db.prepare(`SELECT * FROM serials WHERE code=?`).get(code.toUpperCase());
+  if (!row) return res.status(404).json({ error: 'invalid code' });
+  if (row.used) return res.status(409).json({ error: 'already used' });
+
+  db.prepare(`INSERT OR IGNORE INTO devices(device_id, spins) VALUES (?,0)`).run(deviceId);
+  db.prepare(`UPDATE devices SET spins=spins+? WHERE device_id=?`).run(row.spins, deviceId);
+
+  db.prepare(`UPDATE serials SET used=1, used_by_device=?, used_at=datetime('now') WHERE code=?`)
+    .run(deviceId, code.toUpperCase());
+
+  const dev = db.prepare(`SELECT spins FROM devices WHERE device_id=?`).get(deviceId);
+  res.json({ ok: true, spins: dev.spins });
+});
+
+/* --------------------------------------------
+    SPIN（単発ガチャ）
+-------------------------------------------- */
+app.post('/api/spin', (req, res) => {
+  const device = req.body.deviceId;
+  if (!device) return res.status(400).json({ error: 'deviceId required' });
+
+  db.prepare(`INSERT OR IGNORE INTO devices(device_id, spins) VALUES (?,0)`).run(device);
+  const dev = db.prepare(`SELECT spins FROM devices WHERE device_id=?`).get(device);
+  if (dev.spins <= 0) return res.status(402).json({ error: 'no spins left' });
+
+  /* スピン消費 */
+  db.prepare(`UPDATE devices SET spins=spins-1 WHERE device_id=?`).run(device);
+
+  /* レア度抽選 → そのレア度の景品からランダム1つ選ぶ */
+  const rarity = pickRarity();
+  const prize = pickPrizeByRarity(rarity);
+  if (!prize) return res.status(500).json({ error: 'no prize for rarity ' + rarity });
+
+  /* コレクション登録（重複は1件だけ保持、個数は別カウント） */
+  db.prepare(`INSERT OR IGNORE INTO collections(device_id, prize_id) VALUES (?,?)`)
+    .run(device, prize.id);
+
+  res.json({
+    ok: true,
+    prize: {
+      id: prize.id,
+      rarity,
+      video_url: '/uploads/' + prize.video_path,
+      video_path: prize.video_path
+    }
+  });
+});
+
+/* --------------------------------------------
+    10連ガチャ（/api/spin10）
+-------------------------------------------- */
+app.post('/api/spin10', (req, res) => {
+  const device = req.body.deviceId;
+  if (!device) return res.status(400).json({ error: 'deviceId required' });
+
+  db.prepare(`INSERT OR IGNORE INTO devices(device_id, spins) VALUES (?,0)`).run(device);
+  const dev = db.prepare(`SELECT spins FROM devices WHERE device_id=?`).get(device);
+
+  if (dev.spins < 10) return res.status(402).json({ error: 'not enough spins' });
+
+  /* 10回まとめて消費 */
+  db.prepare(`UPDATE devices SET spins=spins-10 WHERE device_id=?`).run(device);
+
+  const results = [];
+
+  for (let i = 0; i < 10; i++) {
+    const rarity = pickRarity();
+    const prize = pickPrizeByRarity(rarity);
+
+    if (!prize) {
+      results.push({ error: 'no prize for ' + rarity });
+      continue;
+    }
+
+    /* コレクション登録 */
+    const before = db.prepare(`SELECT * FROM collections WHERE device_id=? AND prize_id=?`)
+      .get(device, prize.id);
+
+    const isNew = !before;
+
+    db.prepare(`INSERT OR IGNORE INTO collections(device_id, prize_id) VALUES (?,?)`)
+      .run(device, prize.id);
+
+    results.push({
+      id: prize.id,
+      rarity,
+      video_path: prize.video_path,
+      video_url: '/uploads/' + prize.video_path,
+      isNew
+    });
+  }
+
+  res.json({ ok: true, results });
+});
+
+/* --------------------------------------------
+    My Collection（レア度ごとに返す）
+-------------------------------------------- */
+app.get('/api/my-collection', (req, res) => {
+  const d = req.query.deviceId;
+  if (!d) return res.status(400).json({ error: 'deviceId required' });
+
+  const rows = db.prepare(`
+    SELECT p.title,
+           p.video_path,
+           p.rarity,
+           MAX(c.obtained_at) AS obtained_at,
+           COUNT(*) AS owned_count
+    FROM collections c
+    JOIN prizes p ON c.prize_id = p.id
+    WHERE c.device_id = ?
+    GROUP BY c.prize_id
+    ORDER BY obtained_at DESC
+  `).all(d);
+
+  res.json(rows);
+});
+
+/* --------------------------------------------
+    ダウンロード（スマホ対応）
+-------------------------------------------- */
+app.get('/download/:file', (req, res) => {
+  const f = req.params.file;
+  if (f.includes('..') || f.includes('/') || f.includes('\\'))
+    return res.status(400).json({ error: 'bad filename' });
+
+  const abs = path.join(uploadsDir, f);
+  if (!fs.existsSync(abs)) return res.status(404).json({ error: 'not found' });
+
+  res.download(abs, f);
+});
+
+/* --------------------------------------------
+    HEALTHCHECK
+-------------------------------------------- */
+app.get('/api/health', (_, res) => res.json({ ok: true }));
+
+/* --------------------------------------------
+    SPA Fallback
+-------------------------------------------- */
+app.get('*', (_, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+);
+
+/* --------------------------------------------
+    SERVER RUN
+-------------------------------------------- */
+app.listen(PORT, () =>
+  console.log('Server running on :' + PORT)
+);
