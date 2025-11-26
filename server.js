@@ -277,7 +277,48 @@ function pickPrizeByRarity(rarity){
   const idx = Math.floor(Math.random()*list.length);
   return list[idx];
 }
+/* ---------- Serial Redeem (回数追加) ---------- */
+app.post('/api/redeem-serial', (req, res) => {
+  const { code, deviceId } = req.body;
+  if (!code || !deviceId) {
+    return res.status(400).json({ error: 'code and deviceId required' });
+  }
 
+  const row = db.prepare(`SELECT * FROM serials WHERE code = ?`).get(code);
+  if (!row) {
+    return res.status(404).json({ error: 'invalid code' });
+  }
+
+  if (row.used) {
+    return res.status(400).json({ error: 'already used' });
+  }
+
+  const tx = db.transaction(() => {
+    // 1. 使用済みにする
+    db.prepare(`
+      UPDATE serials
+      SET used = 1,
+          used_by_device = ?,
+          used_at = datetime('now')
+      WHERE code = ?
+    `).run(deviceId, code);
+
+    // 2. デバイスの回数を増やす
+    db.prepare(`
+      INSERT OR IGNORE INTO devices(device_id, spins)
+      VALUES (?, 0)
+    `).run(deviceId);
+
+    db.prepare(`
+      UPDATE devices SET spins = spins + ?
+      WHERE device_id = ?
+    `).run(row.spins, deviceId);
+  });
+
+  tx();
+
+  res.json({ ok: true, added: row.spins });
+});
 /* ---------- Spin ---------- */
 app.post('/api/spin', (req, res)=>{
   const device = req.body.deviceId;
