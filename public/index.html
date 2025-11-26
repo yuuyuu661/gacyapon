@@ -1,136 +1,121 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ガチャポン v7.7</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ガチャポン</title>
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<!-- ▼ ナビゲーション -->
-<div class="tabMenu">
-    <button class="tabBtn" onclick="openTab('gachaTab')">ガチャポン</button>
-    <button class="tabBtn" onclick="openTab('collectionTab')">マイコレクション</button>
-    <button class="tabBtn" onclick="openTab('adminTab')">管理</button>
-</div>
-
-<!-- ---------------------------------------------------------
-     ▼ ガチャTAB
----------------------------------------------------------- -->
-<div id="gachaTab" class="tab page">
-
-    <h2 class="tabTitle">ガチャポン</h2>
-
-    <div id="completeText" class="completeText"></div>
-
-    <div id="gachaContainer">
-        <img id="gachaImage" src="/gachapon.png">
-
-        <!-- 演出（筐体上に重ねる） -->
-        <video id="effectVideo" class="overlayVideo" playsinline webkit-playsinline></video>
-
-        <!-- 初ゲット動画 -->
-        <video id="prizeVideo" class="overlayVideo" playsinline webkit-playsinline></video>
-
-        <!-- 被りサムネ -->
-        <img id="prizeThumb" class="overlayThumb">
+    <!-- ▼ ナビゲーション -->
+    <div class="nav">
+        <button id="tab-gacha">ガチャポン</button>
+        <button id="tab-collection">マイコレクション</button>
+        <button id="tab-admin">管理</button>
     </div>
 
-    <div class="spinsBox">
-        <span id="spinsText">残り回数：0</span>
-    </div>
+    <!-- ▼ コンテンツ切り替え -->
+    <div id="content-gacha" class="content active">
+        <h2 style="text-align:center;">ガチャポン</h2>
 
-    <div class="gachaBtnBox">
-        <button id="spinBtn" class="gachaBtn">回す！</button>
-        <button id="spin10Btn" class="gachaBtn">10連で回す！</button>
-    </div>
-
-</div>
-
-<!-- ---------------------------------------------------------
-     ▼ マイコレTAB
----------------------------------------------------------- -->
-<div id="collectionTab" class="tab page" style="display:none;">
-    <h2 class="tabTitle">マイコレクション</h2>
-
-    <div id="collectionList" class="collectionList"></div>
-</div>
-
-<!-- ---------------------------------------------------------
-     ▼ 管理TAB
----------------------------------------------------------- -->
-<div id="adminTab" class="tab page" style="display:none;">
-    <h2 class="tabTitle">管理メニュー</h2>
-
-    <div id="adminLoginBox">
-        <p>管理パスワード</p>
-        <input type="password" id="adminPassword" class="inputText">
-        <button id="adminLoginBtn" class="adminBtn">ログイン</button>
-    </div>
-
-    <div id="adminContent" style="display:none;">
-
-        <!-- シリアル発行 -->
-        <h3>シリアル番号 発行</h3>
-        <p>好きな文字を入れて発行</p>
-        <input id="serialCodeInput" class="inputText" placeholder="例：yuu2025">
-        <input id="serialSpinInput" class="inputText" type="number" placeholder="付与回数">
-        <button id="issueSerialBtn" class="adminBtn">シリアル発行</button>
-
-        <h4>直近10件</h4>
-        <div id="serialList" class="serialList"></div>
-
-        <hr>
-
-        <!-- 景品アップロード -->
-        <h3>景品入荷（動画登録）</h3>
-
-        <select id="prizeRarity" class="selectBox">
-            <option value="">レア度を選択</option>
-            <option value="superrare">superrare</option>
-            <option value="rare">rare</option>
-            <option value="common">common</option>
-            <option value="normal">normal</option>
-        </select>
-
-        <input type="file" id="prizeFile" class="inputFile" accept="video/mp4">
-        <button id="regPrizeBtn" class="adminBtn">登録する</button>
-
-        <h4>登録済み一覧</h4>
-        <div id="prizesList" class="prizesList"></div>
-
-        <hr>
-
-        <!-- 確率設定 -->
-        <h3>レア度確率</h3>
-
-        <div class="rateRow">
-            <label>superrare</label>
-            <input id="rate_superrare" class="rateInput" type="number"> %
+        <div id="completeMessage" class="complete-message" style="display:none;">
+            ✨✨ コンプリートおめでとう！！ ✨✨<br>
+            ✨ 受付の人に言って特別景品を貰おう！！！ ✨
         </div>
 
-        <div class="rateRow">
-            <label>rare</label>
-            <input id="rate_rare" class="rateInput" type="number"> %
+        <div id="remainWrap" style="text-align:center; margin:10px;">
+            <span id="spinCount" style="font-size:20px; font-weight:bold;">🔔 残り回数：0</span>
         </div>
 
-        <div class="rateRow">
-            <label>common</label>
-            <input id="rate_common" class="rateInput" type="number"> %
+        <!-- ▼ ユーザー名追加 -->
+        <div class="name-input-wrap">
+            <input id="usernameInput" type="text" placeholder="ユーザー名">
+            <button id="addUserBtn">追加</button>
         </div>
 
-        <div class="rateRow">
-            <label>normal</label>
-            <input id="rate_normal" class="rateInput" type="number"> %
+        <h3 id="remainKinds" style="text-align:center; color:#d9534f;"></h3>
+
+        <!-- ▼ 筐体 + 上に重ねる動画 -->
+        <div class="gacha-wrapper">
+            <img src="gachapon.png" class="gacha-machine">
+            <div id="videoOverlay" class="video-overlay"></div>
         </div>
 
-        <button id="saveRateBtn" class="adminBtn">確率を保存</button>
+        <!-- ▼ ボタン -->
+        <div class="btn-area">
+            <button id="spinBtn">回す！</button>
+            <button id="spin10Btn">10連で回す！</button>
+        </div>
+    </div>
+
+    <!-- ▼ マイコレ -->
+    <div id="content-collection" class="content">
+        <h2 style="text-align:center;">マイコレクション</h2>
+
+        <div id="myCollectionList" class="collection-grid"></div>
 
     </div>
-</div>
 
-<script src="app.js"></script>
+    <!-- ▼ 管理画面 -->
+    <div id="content-admin" class="content">
+        <h2 style="text-align:center;">管理</h2>
 
+        <div class="admin-block">
+            <input id="adminPassword" type="password" placeholder="パスワード">
+            <button id="adminLoginBtn">ログイン</button>
+        </div>
+
+        <!-- ▼ 管理メニュー（ログイン後に表示） -->
+        <div id="adminMenu" style="display:none;">
+
+            <h3>🎥 景品動画の登録</h3>
+            <input id="prizeName" type="text" placeholder="景品名（任意）">
+            <input id="prizeFile" type="file" accept="video/mp4,video/mov">
+            <button id="uploadPrizeBtn">登録</button>
+
+            <h4>登録済みの景品</h4>
+            <div id="adminPrizeList" class="admin-prize-list"></div>
+
+            <hr>
+
+            <h3>🎰 レア度の設定</h3>
+
+            <div class="rarity-block">
+                <p>通常</p>
+                <input id="rate-normal" type="number" min="0" max="100">
+            </div>
+
+            <div class="rarity-block">
+                <p>レア</p>
+                <input id="rate-rare" type="number" min="0" max="100">
+            </div>
+
+            <div class="rarity-block">
+                <p>スーパーレア</p>
+                <input id="rate-super" type="number" min="0" max="100">
+            </div>
+
+            <div class="rarity-block">
+                <p>コミン</p>
+                <input id="rate-common" type="number" min="0" max="100">
+            </div>
+
+            <button id="saveRatesBtn">確率を保存</button>
+
+            <hr>
+
+            <h3>🎫 シリアル発行</h3>
+            <input id="serialWord" type="text" placeholder="好きな文字列を入れる">
+            <input id="serialAmount" type="number" value="10">
+            <button id="createSerialBtn">発行</button>
+
+            <h4>シリアル一覧</h4>
+            <div id="serialList"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
