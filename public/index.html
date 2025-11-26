@@ -1,319 +1,136 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ガチャポン</title>
-
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ガチャポン v7.7</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header>
-    🎁 ガチャポン
-</header>
-
-<!-- ▼ タブ -->
-<div class="tab-buttons">
-    <button class="tab-btn active" data-tab="gacha">ガチャポン</button>
-    <button class="tab-btn" data-tab="collection">マイコレ</button>
-    <button class="tab-btn" data-tab="admin">管理</button>
+<!-- ▼ ナビゲーション -->
+<div class="tabMenu">
+    <button class="tabBtn" onclick="openTab('gachaTab')">ガチャポン</button>
+    <button class="tabBtn" onclick="openTab('collectionTab')">マイコレクション</button>
+    <button class="tabBtn" onclick="openTab('adminTab')">管理</button>
 </div>
 
-<!-- =====================================================
-    ▼ ガチャポン画面
-===================================================== -->
-<div id="gacha" class="tab-content active">
+<!-- ---------------------------------------------------------
+     ▼ ガチャTAB
+---------------------------------------------------------- -->
+<div id="gachaTab" class="tab page">
 
-    <h2>ガチャを回そう！</h2>
+    <h2 class="tabTitle">ガチャポン</h2>
 
-    <!-- 残り回数 -->
-    <p>🔔 残り回数：<span id="spinsDisplay">0</span></p>
+    <div id="completeText" class="completeText"></div>
 
-    <!-- シリアル入力で回数追加 -->
-    <div class="serial-box">
-        <input id="serialInput" placeholder="シリアルコードを入力" />
-        <button onclick="redeemSerial()">追加</button>
+    <div id="gachaContainer">
+        <img id="gachaImage" src="/gachapon.png">
+
+        <!-- 演出（筐体上に重ねる） -->
+        <video id="effectVideo" class="overlayVideo" playsinline webkit-playsinline></video>
+
+        <!-- 初ゲット動画 -->
+        <video id="prizeVideo" class="overlayVideo" playsinline webkit-playsinline></video>
+
+        <!-- 被りサムネ -->
+        <img id="prizeThumb" class="overlayThumb">
     </div>
 
-    <!-- コンプリート残数 -->
-    <p id="completeText" class="complete-text">コンプリートまで残り 0 種類！</p>
-
-    <!-- ガチャ筐体 -->
-    <div class="gacha-area">
-        <img id="gachaImage" class="gacha-img" src="gachapon.png" />
-        <div id="videoArea"></div>
+    <div class="spinsBox">
+        <span id="spinsText">残り回数：0</span>
     </div>
 
-    <!-- ガチャボタン -->
-    <div class="spin-buttons">
-        <button id="spinButton" class="spin-btn">回す！</button>
-        <button id="spin10Button" class="spin-btn pink">10連で回す！</button>
+    <div class="gachaBtnBox">
+        <button id="spinBtn" class="gachaBtn">回す！</button>
+        <button id="spin10Btn" class="gachaBtn">10連で回す！</button>
     </div>
 
 </div>
 
+<!-- ---------------------------------------------------------
+     ▼ マイコレTAB
+---------------------------------------------------------- -->
+<div id="collectionTab" class="tab page" style="display:none;">
+    <h2 class="tabTitle">マイコレクション</h2>
 
-<!-- =====================================================
-    ▼ マイコレクション
-===================================================== -->
-<div id="collection" class="tab-content">
-
-    <h2>マイコレクション（いつでも動画再生可能）</h2>
-
-    <div class="rarity-block super-block">
-        <h3 class="rarity-title super-title">SUPER RARE</h3>
-        <div id="row-superrare" class="rarity-row"></div>
-    </div>
-
-    <div class="rarity-block rare-block">
-        <h3 class="rarity-title rare-title">RARE</h3>
-        <div id="row-rare" class="rarity-row"></div>
-    </div>
-
-    <div class="rarity-block common-block">
-        <h3 class="rarity-title common-title">COMMON</h3>
-        <div id="row-common" class="rarity-row"></div>
-    </div>
-
-    <div class="rarity-block normal-block">
-        <h3 class="rarity-title normal-title">NORMAL</h3>
-        <div id="row-normal" class="rarity-row"></div>
-    </div>
-
+    <div id="collectionList" class="collectionList"></div>
 </div>
 
+<!-- ---------------------------------------------------------
+     ▼ 管理TAB
+---------------------------------------------------------- -->
+<div id="adminTab" class="tab page" style="display:none;">
+    <h2 class="tabTitle">管理メニュー</h2>
 
-<!-- =====================================================
-    ▼ 管理画面（パスワードで開閉）
-===================================================== -->
-<div id="admin" class="tab-content">
-
-    <h2>管理メニュー</h2>
-
-    <!-- 管理パス -->
-    <div class="admin-auth">
-        <input id="adminPass" type="password" placeholder="管理者パスワード" />
-        <button id="adminLoginBtn">ログイン</button>
+    <div id="adminLoginBox">
+        <p>管理パスワード</p>
+        <input type="password" id="adminPassword" class="inputText">
+        <button id="adminLoginBtn" class="adminBtn">ログイン</button>
     </div>
 
-    <!-- ログイン後に表示される -->
-    <div id="adminPanel" style="display:none;">
+    <div id="adminContent" style="display:none;">
 
-        <!-- ★ レア度確率設定 -->
-        <section class="admin-section">
-            <h3>🎲 レア度確率設定</h3>
-            <div class="rate-box">
-                <label>superrare (%)：<input id="rateSuper" type="number" min="0"></label>
-                <label>rare (%)：<input id="rateRare" type="number" min="0"></label>
-                <label>common (%)：<input id="rateCommon" type="number" min="0"></label>
-                <label>normal (%)：<input id="rateNormal" type="number" min="0"></label>
-            </div>
-            <button id="saveRateBtn">保存</button>
-        </section>
+        <!-- シリアル発行 -->
+        <h3>シリアル番号 発行</h3>
+        <p>好きな文字を入れて発行</p>
+        <input id="serialCodeInput" class="inputText" placeholder="例：yuu2025">
+        <input id="serialSpinInput" class="inputText" type="number" placeholder="付与回数">
+        <button id="issueSerialBtn" class="adminBtn">シリアル発行</button>
 
-        <!-- ★ 景品登録 -->
-        <section class="admin-section">
-            <h3>📦 景品動画の登録</h3>
+        <h4>直近10件</h4>
+        <div id="serialList" class="serialList"></div>
 
-            <select id="prizeRarity">
-                <option value="superrare">SUPER RARE</option>
-                <option value="rare">RARE</option>
-                <option value="common">COMMON</option>
-                <option value="normal">NORMAL</option>
-            </select>
+        <hr>
 
-            <input id="prizeFile" type="file" accept="video/*" />
+        <!-- 景品アップロード -->
+        <h3>景品入荷（動画登録）</h3>
 
-            <button id="addPrizeBtn">登録</button>
+        <select id="prizeRarity" class="selectBox">
+            <option value="">レア度を選択</option>
+            <option value="superrare">superrare</option>
+            <option value="rare">rare</option>
+            <option value="common">common</option>
+            <option value="normal">normal</option>
+        </select>
 
-            <h4>登録済み景品一覧</h4>
-            <div id="prizeList" class="prize-list"></div>
-        </section>
+        <input type="file" id="prizeFile" class="inputFile" accept="video/mp4">
+        <button id="regPrizeBtn" class="adminBtn">登録する</button>
 
-        <!-- ★ シリアル発行 -->
-        <section class="admin-section">
-            <h3>🔑 シリアルコード発行</h3>
+        <h4>登録済み一覧</h4>
+        <div id="prizesList" class="prizesList"></div>
 
-            <input id="serialWord" placeholder="好きな文字列を入力（例：yuu2025）">
-            <input id="serialSpins" type="number" min="1" placeholder="付与回数">
+        <hr>
 
-            <button id="issueSerialBtn">発行</button>
+        <!-- 確率設定 -->
+        <h3>レア度確率</h3>
 
-            <h4>直近の発行履歴</h4>
-            <div id="serialLog" class="serial-log"></div>
-        </section>
+        <div class="rateRow">
+            <label>superrare</label>
+            <input id="rate_superrare" class="rateInput" type="number"> %
+        </div>
+
+        <div class="rateRow">
+            <label>rare</label>
+            <input id="rate_rare" class="rateInput" type="number"> %
+        </div>
+
+        <div class="rateRow">
+            <label>common</label>
+            <input id="rate_common" class="rateInput" type="number"> %
+        </div>
+
+        <div class="rateRow">
+            <label>normal</label>
+            <input id="rate_normal" class="rateInput" type="number"> %
+        </div>
+
+        <button id="saveRateBtn" class="adminBtn">確率を保存</button>
 
     </div>
-
 </div>
-
 
 <script src="app.js"></script>
-
-<script>
-/* ==========================================================
-    ▼ タブ切り替え
-========================================================== */
-const tabs = document.querySelectorAll(".tab-btn");
-const contents = document.querySelectorAll(".tab-content");
-
-tabs.forEach(btn => {
-    btn.addEventListener("click", () => {
-        tabs.forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-
-        contents.forEach(c => c.classList.remove("active"));
-        document.getElementById(btn.dataset.tab).classList.add("active");
-    });
-});
-
-/* ==========================================================
-    ▼ 管理ログイン
-========================================================== */
-document.getElementById("adminLoginBtn").onclick = async () => {
-    const pw = document.getElementById("adminPass").value;
-
-    const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ password: pw })
-    });
-    const data = await res.json();
-
-    if (!data.ok) {
-        alert("パスワードが違います！");
-        return;
-    }
-
-    document.getElementById("adminPanel").style.display = "block";
-
-    await loadAdminRates();
-    await loadPrizeList();
-    await loadSerialLogs();
-};
-
-/* ==========================================================
-    ▼ レア度確率読み込み
-========================================================== */
-async function loadAdminRates() {
-    const res = await fetch("/api/admin/rates");
-    const rates = await res.json();
-
-    rateSuper.value = rates.superrare;
-    rateRare.value = rates.rare;
-    rateCommon.value = rates.common;
-    rateNormal.value = rates.normal;
-}
-
-/* 保存 */
-document.getElementById("saveRateBtn").onclick = async () => {
-    const body = {
-        superrare: Number(rateSuper.value),
-        rare: Number(rateRare.value),
-        common: Number(rateCommon.value),
-        normal: Number(rateNormal.value)
-    };
-
-    const res = await fetch("/api/admin/rates", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(body)
-    });
-
-    alert("保存しました！");
-};
-
-/* ==========================================================
-    ▼ 景品一覧読み込み
-========================================================== */
-async function loadPrizeList() {
-    const res = await fetch("/api/admin/prizes");
-    const list = await res.json();
-
-    prizeList.innerHTML = "";
-
-    list.forEach(p => {
-        const card = document.createElement("div");
-        card.className = "prize-card";
-
-        card.innerHTML = `
-            <video src="${p.video_path}" muted></video>
-            <p>${p.rarity}</p>
-        `;
-
-        prizeList.appendChild(card);
-    });
-}
-
-/* ==========================================================
-    ▼ 景品登録
-========================================================== */
-document.getElementById("addPrizeBtn").onclick = async () => {
-    const file = prizeFile.files[0];
-    const rarity = prizeRarity.value;
-
-    if (!file) return alert("動画を選択してください");
-
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("rarity", rarity);
-
-    const res = await fetch("/api/admin/prizes", {
-        method: "POST",
-        body: fd
-    });
-
-    const data = await res.json();
-
-    if (!data.ok) {
-        alert("登録に失敗しました");
-        return;
-    }
-
-    alert("登録しました！");
-    loadPrizeList();
-};
-
-/* ==========================================================
-    ▼ シリアルログ読み込み
-========================================================== */
-async function loadSerialLogs() {
-    const res = await fetch("/api/admin/serials");
-    const logs = await res.json();
-
-    serialLog.innerHTML = "";
-
-    logs.forEach(s => {
-        const div = document.createElement("div");
-        div.textContent = `${s.code} / ${s.spins}回 / ${s.used ? "使用済" : "未使用"}${s.usedAt ? " / " + s.usedAt : ""}`;
-        serialLog.appendChild(div);
-    });
-}
-
-/* ==========================================================
-    ▼ シリアル発行
-========================================================== */
-document.getElementById("issueSerialBtn").onclick = async () => {
-    const code = serialWord.value.trim();
-    const spins = Number(serialSpins.value);
-
-    if (!code || !spins) return alert("入力が不足しています");
-
-    const res = await fetch("/api/admin/serials/issue", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ code, spins })
-    });
-
-    const data = await res.json();
-
-    if (!data.ok) return alert("発行に失敗しました");
-
-    alert("発行しました！");
-    loadSerialLogs();
-};
-</script>
 
 </body>
 </html>
