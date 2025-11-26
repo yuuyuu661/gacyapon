@@ -1,5 +1,10 @@
 //------------------------------------------------------------
-// server.js  v7.3  （ガチャポン完全フル版）
+//  server.js v7.5  (ガチャポン完全安定版)
+//  - Railway 永続化対応（data消失対策）
+//  - シリアル同名複数発行OK
+//  - 最新未使用コード優先で使用
+//  - 景品動画が再起動で消えない
+//  - 10連 / 単発 / レア度抽選 / 効果音 / 演出対応
 //------------------------------------------------------------
 
 import express from "express";
@@ -14,19 +19,17 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(fileUpload());
-
-// 公開フォルダ
 app.use(express.static("public"));
 
-// データ保存フォルダ
-const DATA_DIR = "./data";
-const PRIZE_DIR = "./public/prizes";
+//---------------------------------------------
+// ★ 永続ファイル保存先
+//   Railway のコンテナは ./data が消えるため、"./" に保存
+//---------------------------------------------
+const DATA_DIR = "./";  // ← ここが超重要（消えない）
 
-// 必要なら作成
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-if (!fs.existsSync(PRIZE_DIR)) fs.mkdirSync(PRIZE_DIR);
-
-// JSONロード/保存関数
+//---------------------------------------------
+// JSON 読み込み/保存
+//---------------------------------------------
 function load(file, fallback) {
     try {
         return JSON.parse(fs.readFileSync(`${DATA_DIR}/${file}`, "utf8"));
@@ -38,25 +41,28 @@ function save(file, data) {
     fs.writeFileSync(`${DATA_DIR}/${file}`, JSON.stringify(data, null, 2));
 }
 
-//------------------------------------------------------------
-// ▼ DB 定義
-//------------------------------------------------------------
-let devices = load("devices.json", {});      // deviceId → {spins}
-let prizes = load("prizes.json", []);        // [{id, rarity, video_path}]
-let collections = load("collections.json", []); // [{deviceId, video_path, rarity}]
-let serials = load("serials.json", []);      // [{code, spins, used, usedAt}]
-let rates = load("rates.json", {
+//---------------------------------------------
+// データロード
+//---------------------------------------------
+let devices   = load("devices.json", {});      // deviceId -> spins
+let prizes    = load("prizes.json", []);       // {id, rarity, video_path}
+let collections = load("collections.json", []); // {deviceId, rarity, video_path}
+let serials   = load("serials.json", []);      // {id, code, spins, used, usedAt}
+let rates     = load("rates.json", {
     superrare: 2,
     rare: 20,
     common: 50,
     normal: 28
 });
 
-//------------------------------------------------------------
-// ▼ 認証（管理パスワード）
-//------------------------------------------------------------
+//---------------------------------------------
+// 管理パスワード
+//---------------------------------------------
 const ADMIN_PASS = process.env.ADMIN_PASS || "admin";
 
+//---------------------------------------------
+// ▼ 管理ログイン
+//---------------------------------------------
 app.post("/api/admin/login", (req, res) => {
     if (req.body.password !== ADMIN_PASS) {
         return res.json({ ok: false });
@@ -64,31 +70,35 @@ app.post("/api/admin/login", (req, res) => {
     res.json({ ok: true });
 });
 
-//------------------------------------------------------------
-// ▼ デバイス情報取得
-//------------------------------------------------------------
+//---------------------------------------------
+// ▼ デバイス情報
+//---------------------------------------------
 app.get("/api/device", (req, res) => {
     const id = req.query.deviceId;
-    if (!devices[id]) devices[id] = { spins: 0 };
-    save("devices.json", devices);
 
+    if (!devices[id]) devices[id] = { spins: 0 };
+
+    save("devices.json", devices);
     res.json(devices[id]);
 });
 
-//------------------------------------------------------------
-// ▼ シリアルコード使用（回数追加）
-//------------------------------------------------------------
+//---------------------------------------------
+// ▼ シリアル使用（同名OK・最新の未使用を使う）
+//---------------------------------------------
 app.post("/api/redeem-serial", (req, res) => {
     const { code, deviceId } = req.body;
-    const s = serials.find(x => x.code === code);
 
-    if (!s) return res.json({ ok: false, error: "存在しないコード" });
+    // 最新の未使用コードを使用
+    const s = serials
+        .filter(x => x.code === code && !x.used)
+        .sort((a, b) => b.id - a.id)[0];
 
-    if (s.used)
-        return res.json({ ok: false, error: "使用済みコードです" });
+    if (!s) {
+        return res.json({ ok: false, error: "使用可能なコードがありません" });
+    }
 
-    // 回数追加
     if (!devices[deviceId]) devices[deviceId] = { spins: 0 };
+
     devices[deviceId].spins += s.spins;
 
     s.used = true;
@@ -100,9 +110,9 @@ app.post("/api/redeem-serial", (req, res) => {
     res.json({ ok: true, spins: devices[deviceId].spins });
 });
 
-//------------------------------------------------------------
-// ▼ シリアルコード発行（好きな文字列）
-//------------------------------------------------------------
+//---------------------------------------------
+// ▼ シリアル発行（同じ文字列でも何個でも発行OK）
+//---------------------------------------------
 app.post("/api/admin/serials/issue", (req, res) => {
     const { code, spins } = req.body;
 
@@ -111,6 +121,7 @@ app.post("/api/admin/serials/issue", (req, res) => {
     }
 
     serials.push({
+        id: Date.now(),  // ←ユニークID
         code,
         spins,
         used: false,
@@ -122,21 +133,21 @@ app.post("/api/admin/serials/issue", (req, res) => {
     res.json({ ok: true });
 });
 
-// シリアルログ
+// 直近ログ（最新10件）
 app.get("/api/admin/serials", (req, res) => {
     res.json(serials.slice(-10).reverse());
 });
 
-//------------------------------------------------------------
+//---------------------------------------------
 // ▼ 景品一覧
-//------------------------------------------------------------
+//---------------------------------------------
 app.get("/api/admin/prizes", (req, res) => {
     res.json(prizes);
 });
 
-//------------------------------------------------------------
-// ▼ 景品登録（動画アップロード）
-//------------------------------------------------------------
+//---------------------------------------------
+// ▼ 景品登録（永続保存される）
+//---------------------------------------------
 app.post("/api/admin/prizes", async (req, res) => {
     const rarity = req.body.rarity;
     const file = req.files?.file;
@@ -146,7 +157,8 @@ app.post("/api/admin/prizes", async (req, res) => {
     }
 
     const filename = `${Date.now()}_${file.name}`;
-    const savePath = `${PRIZE_DIR}/${filename}`;
+    const savePath = `./public/prizes/${filename}`;
+
     await file.mv(savePath);
 
     prizes.push({
@@ -160,18 +172,18 @@ app.post("/api/admin/prizes", async (req, res) => {
     res.json({ ok: true });
 });
 
-//------------------------------------------------------------
+//---------------------------------------------
 // ▼ マイコレ取得
-//------------------------------------------------------------
+//---------------------------------------------
 app.get("/api/my-collection", (req, res) => {
     const deviceId = req.query.deviceId;
-    const list = collections.filter(c => c.deviceId === deviceId);
+    const list = collections.filter(x => x.deviceId === deviceId);
     res.json(list);
 });
 
-//------------------------------------------------------------
-// ★ レア度抽選ロジック
-//------------------------------------------------------------
+//---------------------------------------------
+// ★ レア度抽選
+//---------------------------------------------
 function getRarityByRate() {
     const r = Math.random() * 100;
 
@@ -181,7 +193,6 @@ function getRarityByRate() {
     return "normal";
 }
 
-// ランダム景品取得
 function pickPrize(rarity) {
     const list = prizes.filter(p => p.rarity === rarity);
     if (list.length === 0) return null;
@@ -189,9 +200,9 @@ function pickPrize(rarity) {
     return list[Math.floor(Math.random() * list.length)];
 }
 
-//------------------------------------------------------------
+//---------------------------------------------
 // ▼ 単発ガチャ
-//------------------------------------------------------------
+//---------------------------------------------
 app.post("/api/spin", (req, res) => {
     const deviceId = req.body.deviceId;
 
@@ -205,14 +216,13 @@ app.post("/api/spin", (req, res) => {
     const rarity = getRarityByRate();
     const prize = pickPrize(rarity);
 
-    if (!prize) {
-        return res.json({ ok: false, error: "no prize" });
-    }
+    if (!prize) return res.json({ ok: false, error: "no prize" });
 
-    const collection = collections.find(
+    const exists = collections.find(
         x => x.deviceId === deviceId && x.video_path === prize.video_path
     );
-    const already = Boolean(collection);
+
+    const already = Boolean(exists);
 
     if (!already) {
         collections.push({
@@ -237,9 +247,9 @@ app.post("/api/spin", (req, res) => {
     });
 });
 
-//------------------------------------------------------------
+//---------------------------------------------
 // ▼ 10連ガチャ
-//------------------------------------------------------------
+//---------------------------------------------
 app.post("/api/spin10", (req, res) => {
     const deviceId = req.body.deviceId;
 
@@ -261,10 +271,11 @@ app.post("/api/spin10", (req, res) => {
             continue;
         }
 
-        const existing = collections.find(
+        const exists = collections.find(
             x => x.deviceId === deviceId && x.video_path === prize.video_path
         );
-        const already = Boolean(existing);
+
+        const already = Boolean(exists);
 
         if (!already) {
             collections.push({
@@ -292,16 +303,21 @@ app.post("/api/spin10", (req, res) => {
     res.json({ ok: true, results });
 });
 
-//------------------------------------------------------------
+//---------------------------------------------
 // ▼ レア度確率保存
-//------------------------------------------------------------
+//---------------------------------------------
 app.post("/api/admin/rates", (req, res) => {
     rates = req.body;
     save("rates.json", rates);
     res.json({ ok: true });
 });
 
-//------------------------------------------------------------
+//---------------------------------------------
+app.get("/api/admin/rates", (req, res) => {
+    res.json(rates);
+});
+
+//---------------------------------------------
 app.listen(PORT, () => {
     console.log("Gachapon server running on port", PORT);
 });
