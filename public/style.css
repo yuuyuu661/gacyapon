@@ -1,86 +1,32 @@
-body {
-    font-family: system-ui;
-    margin: 0;
-    background: #fafafa;
-}
-
-header {
-    background: #ffb347;
-    padding: 16px;
-    text-align: center;
-    font-size: 26px;
-    font-weight: bold;
-}
-
-/* タブ */
-.tab-buttons {
+/* ▼ 新規追加：横スクロール表示 */
+.prize-row {
     display: flex;
-    justify-content: center;
-    gap: 12px;
-    padding: 12px;
-}
-.tab-btn {
-    padding: 6px 16px;
-    border: none;
-    background: #ddd;
-    border-radius: 6px;
-    cursor: pointer;
-}
-.tab-btn.active {
-    background: #ffb347;
-    color: #fff;
+    overflow-x: auto;
+    gap: 10px;
+    padding: 5px 0;
 }
 
-/* タブ中身 */
-.tab-content {
-    display: none;
-    padding: 20px;
-}
-.tab-content.active {
-    display: block;
+.prize-card {
+    min-width: 130px;
+    border: 1px solid #ccc;
+    padding: 6px;
+    background: #fff;
 }
 
-/* ガチャ */
-.serial-box {
-    display: flex;
-    gap: 6px;
-    margin: 10px 0;
-}
-.gacha-img {
-    width: 300px;
-    display: block;
-    margin: 0 auto;
-}
-.spin-buttons {
-    text-align: center;
-    margin-top: 20px;
-}
-.spin-btn {
-    padding: 12px 24px;
-    margin: 0 10px;
-    background: orange;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-}
-.spin-btn.pink {
-    background: hotpink;
-}
-
-/* マイコレ */
-.rarity-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.collection-item video {
-    width: 120px;
-}
-
-/* 管理画面 */
-.admin-section {
-    margin: 20px 0;
-}
 .prize-card video {
-    width: 140px;
+    width: 120px;
+    height: auto;
+    display: block;
+}
+
+/* マイコレ動画 */
+.collection-video {
+    width: 150px;
+    display: block;
+}
+
+.save-btn {
+    margin-top: 4px;
+    padding: 3px 6px;
+    font-size: 12px;
 }
