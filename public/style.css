@@ -1,74 +1,216 @@
-/* Base */
-:root { color-scheme: light; }
-* { box-sizing: border-box; }
-body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif; background: #fff; margin: 0; }
-header { background: #ffb6c1; padding: 10px; position: sticky; top: 0; z-index: 10; }
-h1 { text-align:center; margin:0 0 8px; font-size: clamp(18px, 2.6vw, 28px); }
-.topbar { display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; }
-nav { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-nav button { margin: 0 6px; padding:10px 14px; border-radius:10px; border:1px solid #e08aa0; background:#fff; cursor:pointer; font-size: clamp(12px, 2.8vw, 16px); }
-.admin-actions button { padding:8px 12px; border-radius:10px; border:1px solid #aaa; background:#fff; cursor:pointer; }
+/* ==========================================================
+    RESET
+========================================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-/* Tabs */
-.tab { display: none; padding: 16px; max-width: 1100px; margin: 0 auto; }
-.tab.active { display: block; }
+body {
+  font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", sans-serif;
+  background: #f4f4f4;
+  padding: 10px;
+  color: #333;
+}
 
-/* Gacha stage */
-.gacha-center { margin-top: 16px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:12px; }
-.gacha-stage { position: relative; width: min(92vw, 520px); aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #fafafa; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-#gacha-illust, .stage-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-#gacha-illust { display:block; }
-.stage-video { display:block; background: #000; }
+/* ==========================================================
+    ガチャ本体
+========================================================== */
+#gachaDisplay {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+}
 
-.roll-btn { padding: 12px 22px; background: #ff3571; color: #fff; border: none; border-radius: 12px; font-size: clamp(16px, 4.8vw, 20px); cursor: pointer; }
-.hidden { display: none !important; }
+#gachaImage {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  transition: all 0.2s ease;
+}
 
-/* Inputs */
-.field-label { display:block; font-weight:700; margin:12px 0 6px; }
-.form-grid { display:grid; grid-template-columns: minmax(260px, 1fr); gap: 8px 16px; }
-.form-row input, .form-row select { width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:16px; }
-.checkbox { display:flex; align-items:center; gap:8px; }
-.hint { color:#555; font-size:12px; }
+#gachaVideo {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  display: none;
+  background: black;
+}
 
-/* Serial inline */
-.serial-inline { display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top: 4px; }
-.serial-inline input { padding:10px 12px; border:1px solid #ddd; border-radius:10px; min-width: 220px; }
+/* 揺れアニメ */
+.gacha-anim {
+  animation: gachaShake 0.8s ease;
+}
 
-/* Collection grid */
-.collection { list-style:none; padding:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:12px; }
-.collection li { border:1px solid #eee; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
-.collection .meta { font-size:12px; color:#555; }
-.collection video { width:100%; border-radius:8px; background:#000; }
-.collection .actions { display:flex; gap:8px; flex-wrap:wrap; }
+@keyframes gachaShake {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(3deg); }
+  40% { transform: rotate(-3deg); }
+  60% { transform: rotate(2deg); }
+  80% { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
 
-/* Admin table */
-.card { border:1px solid #eee; border-radius:12px; padding:16px; margin: 8px 0 16px; background:#fff; }
-.table { width:100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
-.table th, .table td { border:1px solid #eee; padding:8px; vertical-align: top; text-align:left; }
-.table th { background:#fff5f7; white-space:nowrap; }
-.table input[type="text"], .table input[type="number"], .table select { width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; }
-.table input[type="file"] { width:100%; }
-.badge { display:inline-block; padding:2px 6px; border-radius:6px; background:#f0f0f0; font-size:12px; }
-.actions { display:flex; gap:8px; flex-wrap:wrap; }
-button.secondary { background:#fff; border:1px solid #ccc; border-radius:8px; padding:6px 10px; cursor:pointer; }
+/* 重複フラッシュ */
+.duplicate-flash {
+  animation: dupFlash 0.6s ease;
+}
 
-/* Admin visibility */
-.admin-only { display:none; }
-.admin-visible .admin-only { display:inline-block; }
+@keyframes dupFlash {
+  0%   { filter: brightness(1); }
+  50%  { filter: brightness(2); }
+  100% { filter: brightness(1); }
+}
 
-/* Admin 2-col grid */
-.grid-2 { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; }
+/* ==========================================================
+    ボタン
+========================================================== */
+button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 17px;
+  cursor: pointer;
+  margin: 8px 6px;
+  background: #5ab4ff;
+  color: white;
+  font-weight: bold;
+}
+button:hover {
+  opacity: 0.9;
+}
 
-/* Serial status + scroll list */
-.serial-status { margin-top: 8px; font-size: 13px; color: #333; }
-.serial-badge { display:inline-block; padding:4px 8px; border:1px dashed #aaa; border-radius:8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#fafafa; }
-.serial-list-table { width:100%; border-collapse:collapse; }
-.serial-list-table th, .serial-list-table td { border:1px solid #eee; padding:6px; font-size: 13px; }
-.serial-list-table th { background:#fff5f7; }
-.scroll-rows { max-height: 180px; overflow:auto; border:1px solid #eee; border-radius: 8px; padding: 6px; background:#fff; } /* ~5行相当 */
+#spin10Btn {
+  background: #ff7f50;
+}
 
-/* Mobile tweaks */
-@media (max-width: 480px){
-  .gacha-stage { width: 94vw; }
-  .serial-inline input { min-width: 60vw; }
+/* 残り回数・コンプリート */
+#spinCount {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#completeText {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* ==========================================================
+    マイコレ4段レイアウト
+========================================================== */
+
+.rarity-block {
+  margin-top: 25px;
+}
+
+.rarity-title {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+
+/* レア度色 */
+.rarity-superrare { color: #a34bff; }  /* 紫 */
+.rarity-rare      { color: #d4af37; }  /* 金 */
+.rarity-common    { color: #c0c0c0; }  /* 銀 */
+.rarity-normal    { color: #cd7f32; }  /* 銅 */
+
+/* 横スクロールブロック */
+.rarity-row {
+  display: flex;
+  overflow-x: auto;
+  gap: 10px;
+  padding-bottom: 5px;
+  padding-top: 5px;
+  scroll-snap-type: x mandatory;
+}
+
+.collection-item {
+  min-width: 120px;
+  height: 120px;
+  border-radius: 10px;
+  overflow: hidden;
+  scroll-snap-align: start;
+  border: 3px solid #999;
+  position: relative;
+  background: #000;
+}
+
+/* レア度ごとの枠色 */
+.collection-item.superrare { border-color: #a34bff; }
+.collection-item.rare      { border-color: #d4af37; }
+.collection-item.common    { border-color: #c0c0c0; }
+.collection-item.normal    { border-color: #cd7f32; }
+
+.collection-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ==========================================================
+    管理タブ
+========================================================== */
+.admin-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+
+.admin-section h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.admin-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.admin-row label {
+  width: 110px;
+  font-weight: bold;
+}
+
+.admin-row input {
+  width: 80px;
+  padding: 4px 8px;
+  font-size: 16px;
+}
+
+/* ==========================================================
+    タブ表示
+========================================================== */
+.tab {
+  display: none;
+}
+.tab.active {
+  display: block;
+}
+
+/* ==========================================================
+    スマホ最適化
+========================================================== */
+@media (max-width: 480px) {
+  #gachaImage,
+  #gachaVideo {
+    max-width: 95%;
+  }
+
+  .collection-item {
+    min-width: 95px;
+    height: 95px;
+  }
+
+  .rarity-title {
+    font-size: 18px;
+  }
 }
