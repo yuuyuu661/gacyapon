@@ -1,352 +1,223 @@
 /* ==========================================================
-    app.js v7.0
-    - ガチャ単発 & 10連
-    - マイコレクション：レア度 4 段 UI
-    - コンプリート残数表示
-    - スマホ対応
-    - 管理タブ：レア度確率の編集
+    app.js v7.1
+    - 単発ガチャ：演出 → 景品動画（重複はサムネのみ）
+    - 10連ガチャ：新規は演出→動画、重複はサムネのみ
+    - コンプリート残数表示（色変化）
+    - マイコレ4段（superrare, rare, common, normal）
 ========================================================== */
 
-const deviceId = (() => {
-  let id = localStorage.getItem("deviceId");
-  if (!id) {
-    id = "dev-" + Math.random().toString(36).slice(2);
-    localStorage.setItem("deviceId", id);
-  }
-  return id;
-})();
-
-let spins = 0;  // 残り回数
-let rarityRates = {}; // レア度確率（管理画面）
+// デバイスID（初回だけ生成）
+let deviceId = localStorage.getItem("deviceId");
+if (!deviceId) {
+    deviceId = "dev_" + Math.random().toString(36).slice(2);
+    localStorage.setItem("deviceId", deviceId);
+}
 
 /* ==========================================================
     DOM 取得
 ========================================================== */
-const spinBtn = document.getElementById("spinBtn");
-const spin10Btn = document.getElementById("spin10Btn");
-const spinCountText = document.getElementById("spinCount");
+const spinsDisplay = document.getElementById("spinsDisplay");
+const spinButton = document.getElementById("spinButton");
+const spin10Button = document.getElementById("spin10Button");
 const completeText = document.getElementById("completeText");
 
-// レア度ごとのマイコレブロック
-const colSuperRare = document.getElementById("col-superrare");
-const colRare = document.getElementById("col-rare");
-const colCommon = document.getElementById("col-common");
-const colNormal = document.getElementById("col-normal");
-
-// レア度ラベル
-const rateSuperrareInput = document.getElementById("rate-superrare");
-const rateRareInput = document.getElementById("rate-rare");
-const rateCommonInput = document.getElementById("rate-common");
-const rateNormalInput = document.getElementById("rate-normal");
-const saveRatesBtn = document.getElementById("saveRatesBtn");
-
-// ガチャ演出の表示枠
-const gachaDisplay = document.getElementById("gachaDisplay");
 const gachaImage = document.getElementById("gachaImage");
-const gachaVideo = document.getElementById("gachaVideo");
+const videoArea = document.getElementById("videoArea");
 
-// エラー表示
-function showError(msg) {
-  alert(msg);
-}
+const myCollectionArea = document.getElementById("myCollection");
+
+// マイコレレア度ブロック
+const rowSuper = document.getElementById("row-superrare");
+const rowRare = document.getElementById("row-rare");
+const rowCommon = document.getElementById("row-common");
+const rowNormal = document.getElementById("row-normal");
 
 /* ==========================================================
-    初期ロード
+    初期読込
 ========================================================== */
-async function init() {
-  await loadSpins();
-  await loadCollection();
-  await loadRarityRates();
-}
-window.onload = init;
+loadSpins();
+loadMyCollection();
 
-/* ---------------------------------------------
-    残り回数を取得
---------------------------------------------- */
+/* ==========================================================
+    回数読込
+========================================================== */
 async function loadSpins() {
-  try {
     const res = await fetch(`/api/device?deviceId=${deviceId}`);
-    const json = await res.json();
-    spins = json.spins || 0;
-    spinCountText.textContent = spins;
-  } catch (e) {
-    console.error(e);
-    showError("回数読み込みに失敗しました");
-  }
+    const data = await res.json();
+    spinsDisplay.textContent = data.spins ?? 0;
 }
 
-/* ---------------------------------------------
-    レア度率読み込み（管理）
---------------------------------------------- */
-async function loadRarityRates() {
-  try {
-    const token = localStorage.getItem("adminToken");
-    if (!token) return;
-
-    const res = await fetch(`/api/admin/rarity-rates`, {
-      headers: { "Authorization": "Bearer " + token }
+/* ==========================================================
+    コンプリート残数表示
+========================================================== */
+async function updateCompleteCount() {
+    const prizeRes = await fetch(`/api/admin/prizes`, { 
+        headers: { Authorization: "" } 
     });
-    const list = await res.json();
+    const allPrizes = await prizeRes.json();
 
-    list.forEach(r => {
-      rarityRates[r.rarity] = r.rate;
-    });
+    const myRes = await fetch(`/api/my-collection?deviceId=${deviceId}`);
+    const myPrizes = await myRes.json();
 
-    rateSuperrareInput.value = rarityRates.superrare;
-    rateRareInput.value = rarityRates.rare;
-    rateCommonInput.value = rarityRates.common;
-    rateNormalInput.value = rarityRates.normal;
-
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-/* ---------------------------------------------
-    レア度確率更新
---------------------------------------------- */
-saveRatesBtn?.addEventListener("click", async () => {
-  try {
-    const token = localStorage.getItem("adminToken");
-    if (!token) return showError("管理者ログインが必要です");
-
-    const body = {
-      superrare: Number(rateSuperrareInput.value),
-      rare: Number(rateRareInput.value),
-      common: Number(rateCommonInput.value),
-      normal: Number(rateNormalInput.value)
-    };
-
-    const res = await fetch(`/api/admin/rarity-rates/update`, {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-
-    const json = await res.json();
-    if (json.ok) {
-      alert("保存しました！");
-      loadRarityRates();
+    const remain = allPrizes.length - myPrizes.length;
+    if (remain <= 10) {
+        completeText.style.color = "red";
     } else {
-      showError("保存に失敗");
+        completeText.style.color = "black";
     }
+    completeText.textContent = `コンプリートまで残り ${remain} 種類！`;
+}
 
-  } catch (e) {
-    console.error(e);
-    showError("保存時にエラー");
-  }
-});
 /* ==========================================================
-    マイコレクション取得（レア度4段で表示）
+    マイコレ読込（4段スライド）
 ========================================================== */
-async function loadCollection() {
-  try {
+async function loadMyCollection() {
+    myCollectionArea.innerHTML = "";
+
+    rowSuper.innerHTML = "";
+    rowRare.innerHTML = "";
+    rowCommon.innerHTML = "";
+    rowNormal.innerHTML = "";
+
     const res = await fetch(`/api/my-collection?deviceId=${deviceId}`);
-    const list = await res.json();
+    const data = await res.json();
 
-    /* 4段ブロックを全部クリア */
-    colSuperRare.innerHTML = "";
-    colRare.innerHTML = "";
-    colCommon.innerHTML = "";
-    colNormal.innerHTML = "";
+    data.forEach(item => {
+        const thumb = document.createElement("video");
+        thumb.src = `/uploads/${item.video_path}`;
+        thumb.className = "thumb-video";
 
-    /* 種類数カウント */
-    const owned = new Set();
-    list.forEach(item => owned.add(item.video_path));
-
-    /* 全景品数を取得してコンプリート残数を算出 */
-    const total = await fetchTotalPrizes();
-    const remaining = total - owned.size;
-
-    completeText.textContent = `コンプリートまで残り ${remaining} 種類！`;
-    completeText.style.color = remaining <= 10 ? "red" : "black";
-
-    /* レア度ごとに追加 */
-    list.forEach(item => {
-      const box = document.createElement("div");
-      box.className = "collection-item";
-
-      /* 動画の1フレーム目をサムネ化 */
-      const thumb = document.createElement("video");
-      thumb.src = "/uploads/" + item.video_path;
-      thumb.className = "collection-thumb";
-      thumb.muted = true;
-      thumb.playsInline = true;
-      thumb.preload = "metadata";
-
-      box.appendChild(thumb);
-
-      /* タップすると動画再生 */
-      box.onclick = () => {
-        playCollectionVideo(item.video_path);
-      };
-
-      switch (item.rarity) {
-        case "superrare":
-          colSuperRare.appendChild(box);
-          break;
-        case "rare":
-          colRare.appendChild(box);
-          break;
-        case "common":
-          colCommon.appendChild(box);
-          break;
-        default:
-          colNormal.appendChild(box);
-      }
+        if (item.rarity === "superrare") rowSuper.appendChild(thumb);
+        else if (item.rarity === "rare") rowRare.appendChild(thumb);
+        else if (item.rarity === "common") rowCommon.appendChild(thumb);
+        else rowNormal.appendChild(thumb);
     });
 
-  } catch (e) {
-    console.error(e);
-    showError("マイコレクション読み込み失敗");
-  }
+    updateCompleteCount();
 }
 
-/* ---------------------------------------------
-    全景品数を取得（コンプリート判定用）
---------------------------------------------- */
-async function fetchTotalPrizes() {
-  try {
-    const token = localStorage.getItem("adminToken");
-    const res = await fetch(`/api/admin/prizes`, {
-      headers: token ? { "Authorization": "Bearer " + token } : {}
-    });
-    const list = await res.json();
-    return list.length;
-  } catch {
-    return 0;
-  }
-}
-
-/* ---------------------------------------------
-    マイコレ動画を再生
---------------------------------------------- */
-function playCollectionVideo(videoPath) {
-  gachaImage.style.display = "none";
-  gachaVideo.style.display = "block";
-  gachaVideo.src = "/uploads/" + videoPath;
-  gachaVideo.play();
-
-  gachaVideo.onended = () => {
-    gachaVideo.style.display = "none";
-    gachaImage.style.display = "block";
-  };
-}
 /* ==========================================================
-    ガチャ演出（単発）
+    ▼ 共通：動画再生ヘルパー
 ========================================================== */
-spinBtn.addEventListener("click", async () => {
-  if (spins <= 0) return showError("回数がありません");
+function playVideo(url) {
+    return new Promise(resolve => {
+        gachaImage.style.display = "none";
+        videoArea.innerHTML = "";
+        
+        const v = document.createElement("video");
+        v.src = url;
+        v.autoplay = true;
+        v.playsInline = true;
+        v.onended = () => resolve();
+        videoArea.appendChild(v);
+    });
+}
 
-  try {
+/* ==========================================================
+    ▼ サムネだけ表示（重複時）
+========================================================== */
+function showThumbnail(url) {
+    return new Promise(resolve => {
+        gachaImage.style.display = "none";
+        videoArea.innerHTML = "";
+        
+        const img = document.createElement("video");
+        img.src = url;
+        img.className = "thumb-video-large";
+        img.autoplay = false;
+        img.controls = false;
+
+        // 1フレーム目だけ表示する
+        img.addEventListener("loadeddata", () => {
+            resolve();
+        });
+
+        videoArea.appendChild(img);
+    });
+}
+
+/* ==========================================================
+    ▼ 単発ガチャ
+========================================================== */
+spinButton.addEventListener("click", async () => {
     const res = await fetch("/api/spin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId })
     });
-    const json = await res.json();
-    if (!json.ok) return showError(json.error || "ガチャ失敗");
 
-    spins -= 1;
-    spinCountText.textContent = spins;
-
-    await playGachaResult(json.prize, true); // 新規動画は演出あり
-
-    await loadCollection();
-  } catch (e) {
-    console.error(e);
-    showError("ガチャ通信エラー");
-  }
-});
-
-/* ==========================================================
-    10連ガチャ
-========================================================== */
-spin10Btn.addEventListener("click", async () => {
-  if (spins < 10) return showError("10回分の回数がありません");
-
-  try {
-    const res = await fetch("/api/spin10", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId })
-    });
-    const json = await res.json();
-    if (!json.ok) return showError("10連に失敗");
-
-    spins -= 10;
-    spinCountText.textContent = spins;
-
-    // 10件順番に演出
-    for (const r of json.results) {
-      if (r.isNew) {
-        // 新規 → 普通に演出＋動画再生
-        await playGachaResult(r, true);
-      } else {
-        // 重複 → サムネ表示のみ（スキップ）
-        await playDuplicateThumb(r.video_path, r.rarity);
-      }
+    const data = await res.json();
+    if (!data.ok) {
+        alert(data.error || "エラー");
+        return;
     }
 
-    await loadCollection();
+    spinsDisplay.textContent = Number(spinsDisplay.textContent) - 1;
 
-  } catch (e) {
-    console.error(e);
-    showError("10連通信エラー");
-  }
+    // ① 演出（レア度.mp4）
+    await playVideo(data.effect);
+
+    // ② 景品動画（初ゲット）
+    //    重複はサムネのみ
+    const colRes = await fetch(`/api/my-collection?deviceId=${deviceId}`);
+    const beforeList = await colRes.json();
+    const already = beforeList.some(x => x.video_path === data.prize.video_path);
+
+    if (already) {
+        await showThumbnail(data.prize.url);
+    } else {
+        await playVideo(data.prize.url);
+    }
+
+    gachaImage.style.display = "block";
+    loadMyCollection();
 });
 
 /* ==========================================================
-    新規動画 → ガチャ演出 → 再生
+    ▼ 10連ガチャ
 ========================================================== */
-async function playGachaResult(prize, animate = true) {
-  gachaVideo.pause();
-  gachaVideo.style.display = "none";
+spin10Button.addEventListener("click", async () => {
+    const spins = Number(spinsDisplay.textContent);
+    if (spins < 10) {
+        alert("回数が足りません！");
+        return;
+    }
 
-  if (animate) {
-    gachaImage.classList.add("gacha-anim");
-    await wait(800);
-    gachaImage.classList.remove("gacha-anim");
-  }
+    const res = await fetch("/api/spin10", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId })
+    });
 
-  // 動画を同じ領域で再生
-  gachaImage.style.display = "none";
-  gachaVideo.style.display = "block";
-  gachaVideo.src = "/uploads/" + prize.video_path;
-  gachaVideo.play();
+    const data = await res.json();
+    if (!data.ok) {
+        alert("エラー");
+        return;
+    }
 
-  await new Promise(res => {
-    gachaVideo.onended = () => {
-      gachaVideo.style.display = "none";
-      gachaImage.style.display = "block";
-      res();
-    };
-  });
-}
+    spinsDisplay.textContent = spins - 10;
 
-/* ==========================================================
-    重複 → サムネを一瞬出すだけの演出
-========================================================== */
-async function playDuplicateThumb(videoPath, rarity) {
-  gachaVideo.pause();
-  gachaVideo.style.display = "none";
+    for (const result of data.results) {
+        if (!result || result.error) continue;
 
-  // 一瞬サムネ差し替え
-  gachaImage.src = "/uploads/" + videoPath;
-  gachaImage.classList.add("duplicate-flash");
+        // ▼ ① 演出
+        await playVideo(result.effect);
 
-  await wait(600);
+        // デバイスの所持リスト読込
+        const myBefore = await fetch(`/api/my-collection?deviceId=${deviceId}`);
+        const beforeList = await myBefore.json();
+        const already = beforeList.some(item => item.video_path === result.prize.video_path);
 
-  gachaImage.classList.remove("duplicate-flash");
-  gachaImage.src = "./img/gachapon.png"; // 初期のガチャ画像に戻す
-}
+        // ▼ ② 新規 → 動画再生
+        if (!already) {
+            await playVideo(result.prize.url);
+        }
+        // ▼ 重複 → サムネのみ
+        else {
+            await showThumbnail(result.prize.url);
+        }
+    }
 
-/* ---------------------------------------------
-    待機用
---------------------------------------------- */
-function wait(ms) {
-  return new Promise(res => setTimeout(res, ms));
-}
+    gachaImage.style.display = "block";
+    loadMyCollection();
+});
