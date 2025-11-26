@@ -9,7 +9,7 @@
 
 <body>
 
-<h1>🎁 ガチャポン v7.1 🎁</h1>
+<h1>🎁 ガチャポン🎁</h1>
 
 <!-- ==========================================================
     ▼ タブボタン
@@ -28,6 +28,11 @@
   <h2>ガチャを回そう！</h2>
 
   <p>🎫 残り回数：<span id="spinsDisplay">0</span></p>
+<!-- ▼ シリアル入力で回数追加 -->
+<div style="margin-top:10px;">
+    <input id="serialInput" type="text" placeholder="シリアルコードを入力" style="padding:10px;width:70%;border-radius:8px;border:1px solid #ccc;" />
+    <button onclick="redeemSerial()">追加</button>
+</div>
 
   <!-- コンプリート残数 -->
   <p id="completeText">コンプリートまで残り -- 種類！</p>
