@@ -212,3 +212,22 @@ spin10Button.addEventListener("click", async () => {
     gachaImage.style.display = "block";
     loadMyCollection();
 });
+async function redeemSerial() {
+    const code = document.getElementById("serialInput").value.trim();
+    if (!code) return alert("コードを入力してください！");
+
+    const res = await fetch("/api/redeem-serial", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ code, deviceId })
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+        alert(data.error || "無効なシリアルです");
+        return;
+    }
+
+    spinsDisplay.textContent = data.spins;
+    document.getElementById("serialInput").value = "";
+}
