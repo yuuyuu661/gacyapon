@@ -1,229 +1,304 @@
-/* ------------------------------------
-   RESET
------------------------------------- */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* Base */
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
 
 body {
-  font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
-  background: #fdfdfd;
-  color: #333;
-  line-height: 1.6;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto,
+               "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+               "Yu Gothic", sans-serif;
+  background: #fff;
+  margin: 0;
 }
 
-/* ------------------------------------
-   HEADER
------------------------------------- */
 header {
-  padding: 16px;
-  background: #ffbcc8;
-  text-align: center;
-  margin-bottom: 20px;
+  background: #ffb6c1;
+  padding: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 h1 {
-  font-size: 22px;
-  margin-bottom: 10px;
-}
-
-/* ------------------------------------
-   TAB BUTTONS
------------------------------------- */
-#tabs button {
-  padding: 10px 20px;
-  border: 1px solid #aaa;
-  border-radius: 10px;
-  background: white;
-  margin: 4px;
-  font-size: 15px;
-  cursor: pointer;
-}
-
-#tabs button:hover {
-  background: #f0f0f0;
-}
-
-/* ------------------------------------
-   CARD（管理パネル共通）
------------------------------------- */
-.card {
-  width: 92%;
-  max-width: 900px;
-  margin: 25px auto;
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 22px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-
-.card h3 {
-  margin-bottom: 12px;
-}
-
-/* ------------------------------
-   FORM ELEMENTS
------------------------------- */
-input[type="text"],
-input[type="number"],
-input[type="file"],
-select {
-  width: 100%;
-  max-width: 400px;
-  padding: 9px 12px;
-  margin: 8px 0 14px 0;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 15px;
-}
-
-button {
-  padding: 9px 16px;
-  background: #ff6f91;
-  color: white;
-  border-radius: 9px;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-button:hover {
-  background: #ff4f76;
-}
-
-/* ------------------------------
-   SCROLL BOX（シリアル一覧）
------------------------------- */
-.scroll-rows {
-  max-height: 220px;
-  overflow-y: auto;
-  padding: 10px;
-  border: 1px solid #ddd;
-  background: #fafafa;
-  border-radius: 10px;
-}
-
-/* ------------------------------------
-   GACHA SECTION
------------------------------------- */
-#gacha-illust {
-  width: 100%;
-  max-width: 320px;
-}
-
-.gacha-center {
   text-align: center;
+  margin: 0 0 8px;
+  font-size: clamp(18px, 2.6vw, 28px);
+}
+
+.topbar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+nav button {
+  margin: 0 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e08aa0;
+  background: #fff;
+  cursor: pointer;
+  font-size: clamp(12px, 2.8vw, 16px);
+}
+
+.admin-actions button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #aaa;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* Tabs */
+.tab {
+  display: none;
+  padding: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.tab.active {
+  display: block;
+}
+
+/* Gacha stage */
+.gacha-center {
+  margin-top: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
 .gacha-stage {
   position: relative;
-  display: inline-block;
-  width: 320px;
-  height: 320px;
-  margin: 10px auto 20px auto;
+  width: min(92vw, 520px);
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fafafa;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
 
+#gacha-illust,
 .stage-video {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 320px;
-  height: 320px;
-  object-fit: cover;
-  border-radius: 10px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
+#gacha-illust { display: block; }
+.stage-video { display: block; background: #000; }
 
-#thumb-preview {
-  width: 320px;
-  height: 320px;
-  border-radius: 10px;
-}
-
-/* 回すボタン */
 .roll-btn {
-  padding: 12px 24px;
-  font-size: 17px;
-  margin: 12px 8px;
-  background: #ff6f91;
+  padding: 12px 22px;
+  background: #ff3571;
+  color: #fff;
+  border: none;
   border-radius: 12px;
+  font-size: clamp(16px, 4.8vw, 20px);
+  cursor: pointer;
 }
 
-.roll-btn:hover {
-  background: #ff4e76;
+.hidden { display: none !important; }
+
+/* Inputs */
+.field-label {
+  display: block;
+  font-weight: 700;
+  margin: 12px 0 6px;
 }
 
-/* ------------------------------------
-   SERIAL INPUT
------------------------------------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr);
+  gap: 12px 18px;
+}
+
+.form-row input,
+.form-row select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+/* Serial inline */
 .serial-inline {
-  margin-top: 18px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
 }
 
 .serial-inline input {
-  width: 260px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #aaa;
-  margin-right: 6px;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  min-width: 220px;
 }
 
-/* ------------------------------------
-   COLLECTION LIST
------------------------------------- */
+/* Collection grid */
 .collection {
-  width: 92%;
-  max-width: 900px;
-  margin: 10px auto;
   list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .collection li {
-  background: white;
-  border-radius: 10px;
+  border: 1px solid #eee;
+  border-radius: 12px;
   padding: 12px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-}
-
-/* ------------------------------------
-   COMPLETE STATUS
------------------------------------- */
-.complete-status {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 12px;
-}
-
-/* ------------------------------------
-   BONUS VIDEO BUTTON
------------------------------------- */
-.bonus-btn {
-  margin-bottom: 14px;
-  padding: 10px 20px;
-}
-
-/* ------------------------------------
-   FORM GRID (旧UI復元)
------------------------------------- */
-.form-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* ------------------------------------
-   HIDDEN
------------------------------------- */
-.hidden {
-  display: none !important;
+.collection .meta {
+  font-size: 12px;
+  color: #555;
 }
 
-/* ------------------------------------
-   VIDEO PLAYER
------------------------------------- */
-video {
-  outline: none;
-  border-radius: 10px;
+.collection video {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+}
+
+.collection .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Admin table */
+.card {
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 8px 0 16px;
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  border: 1px solid #eee;
+  padding: 8px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.table th {
+  background: #fff5f7;
+  white-space: nowrap;
+}
+
+.table select,
+.table input[type="file"] {
+  width: 100%;
+}
+
+.table input[type="checkbox"] {
+  transform: scale(1.2);
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f0f0f0;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button.secondary {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+/* Admin visibility */
+.admin-only { display: none; }
+.admin-visible .admin-only { display: inline-block; }
+
+/* Admin 2-col grid */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* Serial status + scroll list */
+.serial-status {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #333;
+}
+
+.serial-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px dashed #aaa;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: #fafafa;
+}
+
+.serial-list-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.serial-list-table th,
+.serial-list-table td {
+  border: 1px solid #eee;
+  padding: 6px;
+  font-size: 13px;
+}
+
+.serial-list-table th {
+  background: #fff5f7;
+}
+
+.scroll-rows {
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 6px;
+  background: #fff;
+}
+
+/* Mobile tweaks */
+@media (max-width: 480px) {
+  .gacha-stage { width: 94vw; }
+  .serial-inline input { min-width: 60vw; }
 }
