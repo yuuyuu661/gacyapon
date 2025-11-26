@@ -1,3 +1,7 @@
+/* =========================================================
+   BASE (ゆうさんが貼ってくれた元デザインを完全ベースに採用)
+========================================================= */
+
 /* Base */
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
@@ -68,7 +72,9 @@ nav button {
   display: block;
 }
 
-/* Gacha stage */
+/* =========================================================
+   GACHA STAGE
+========================================================= */
 .gacha-center {
   margin-top: 16px;
   text-align: center;
@@ -89,16 +95,20 @@ nav button {
 }
 
 #gacha-illust,
-.stage-video {
+.stage-video,
+#thumb-preview {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
+
 #gacha-illust { display: block; }
 .stage-video { display: block; background: #000; }
+#thumb-preview { display: none; }
 
+/* Roll Button */
 .roll-btn {
   padding: 12px 22px;
   background: #ff3571;
@@ -150,7 +160,9 @@ nav button {
   min-width: 220px;
 }
 
-/* Collection grid */
+/* =========================================================
+   COLLECTION LIST
+========================================================= */
 .collection {
   list-style: none;
   padding: 0;
@@ -185,13 +197,16 @@ nav button {
   flex-wrap: wrap;
 }
 
-/* Admin table */
+/* =========================================================
+   ADMIN PANEL (カードUI)
+========================================================= */
 .card {
   border: 1px solid #eee;
   border-radius: 12px;
   padding: 16px;
   margin: 8px 0 16px;
   background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .table {
@@ -211,11 +226,10 @@ nav button {
 
 .table th {
   background: #fff5f7;
-  white-space: nowrap;
 }
 
-.table select,
-.table input[type="file"] {
+.table input[type="file"],
+.table select {
   width: 100%;
 }
 
@@ -256,7 +270,16 @@ button.secondary {
   gap: 16px;
 }
 
-/* Serial status + scroll list */
+/* Serial list */
+.scroll-rows {
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 6px;
+  background: #fff;
+}
+
 .serial-status {
   margin-top: 8px;
   font-size: 13px;
@@ -268,37 +291,57 @@ button.secondary {
   padding: 4px 8px;
   border: 1px dashed #aaa;
   border-radius: 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   background: #fafafa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-.serial-list-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.serial-list-table th,
-.serial-list-table td {
-  border: 1px solid #eee;
-  padding: 6px;
-  font-size: 13px;
-}
-
-.serial-list-table th {
-  background: #fff5f7;
-}
-
-.scroll-rows {
-  max-height: 180px;
-  overflow: auto;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 6px;
-  background: #fff;
-}
-
-/* Mobile tweaks */
+/* =========================================================
+   MOBILE
+========================================================= */
 @media (max-width: 480px) {
   .gacha-stage { width: 94vw; }
   .serial-inline input { min-width: 60vw; }
+}
+
+/* =========================================================
+   ★★★ 新機能追加CSS（10連＋被りサムネ表示＋コンプリート表示） ★★★
+========================================================= */
+
+/* duplicate サムネ表示 */
+#thumb-preview {
+  object-fit: cover;
+  border-radius: 12px;
+  display: none;
+}
+
+/* コンプリート */
+.complete-counter {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.complete-normal { color: #333; }
+.complete-warning { color: red; }
+.complete-done { color: #f7d000; }
+
+/* 特典動画ボタン */
+.bonus-btn {
+  padding: 12px 20px;
+  font-size: 18px;
+  border-radius: 10px;
+  background: #ffd700;
+  color: #333;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+/* 10回回すボタン */
+.multi-btn {
+  padding: 12px 22px;
+  background: #ff6f91;
+  color: #fff;
+  border-radius: 12px;
+  font-size: clamp(16px, 4.8vw, 20px);
+  margin-top: 6px;
 }
