@@ -1,427 +1,352 @@
-const $ = (sel) => document.querySelector(sel);
+/* ==========================================================
+    app.js v7.0
+    - ガチャ単発 & 10連
+    - マイコレクション：レア度 4 段 UI
+    - コンプリート残数表示
+    - スマホ対応
+    - 管理タブ：レア度確率の編集
+========================================================== */
 
-// --- Safe JSON fetch helper ---
-async function safeJson(res){
-  const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) {
-    try { return await res.json(); }
-    catch { return { ok:false, error:'Invalid JSON', status: res.status }; }
-  } else {
-    const text = await res.text().catch(()=>'');
-    return { ok:false, error: text || ('HTTP '+res.status), status: res.status };
-  }
-}
-async function api(url, opt={}) {
-  try {
-    const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opt});
-    const data = await safeJson(r);
-    if (!r.ok && data && !data.error) data.error = 'HTTP '+r.status;
-    return data;
-  } catch (e) {
-    return { ok:false, error: String(e) };
-  }
-}
-
-// --- Stage helpers ---
-function stopStageVideos(){
-  ['rarity-anim','result-video'].forEach(id=>{
-    const v = document.getElementById(id);
-    v.pause?.();
-    v.currentTime = 0;
-    v.classList.add('hidden');
-  });
-  $('#gacha-illust').classList.remove('hidden');
-}
-
-function switchTo(tabName){
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  const target = document.querySelector(`#tab-${tabName}`);
-  if (target) target.classList.add('active');
-  if (tabName === 'collection') loadCollection();
-  if (tabName === 'gacha') { stopStageVideos(); loadSpins(); }
-  if (tabName === 'admin') { renderPrizeList(); loadSerials(); }
-}
-
-document.getElementById('tabs').addEventListener('click', (e)=>{
-  if (e.target.tagName !== 'BUTTON') return;
-  const tab = e.target.dataset.tab;
-  if (tab === 'admin' && !sessionStorage.getItem('adminToken')) {
-    alert('最初に「管理ログイン」してください');
-    return;
-  }
-  switchTo(tab);
-});
-
-// Device ID
-function ensureDeviceId(){
-  let id = localStorage.getItem('deviceId');
-  if(!id){
-    id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now())+'-'+Math.random().toString(36).slice(2);
-    localStorage.setItem('deviceId', id);
+const deviceId = (() => {
+  let id = localStorage.getItem("deviceId");
+  if (!id) {
+    id = "dev-" + Math.random().toString(36).slice(2);
+    localStorage.setItem("deviceId", id);
   }
   return id;
-}
-const deviceId = ensureDeviceId();
+})();
 
-// Admin login
-async function adminToken(){
-  let token = sessionStorage.getItem('adminToken');
-  if (token) return token;
-  const pass = prompt('管理パスワードを入力');
-  if (!pass) return null;
-  let r, j;
-  try{
-    r = await fetch('/api/admin/login',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({password:pass})
-    });
-  }catch(e){
-    alert('接続に失敗しました: ' + e);
-    return null;
-  }
-  if (r.status === 404) {
-    alert('404: /api/admin/login が見つかりません。Railway は必ず「Service(Node)」で、Start=npm start / Port=PORT です。');
-    return null;
-  }
-  j = await safeJson(r);
-  if (!r.ok){ alert(j.error || ('HTTP '+r.status)); return null; }
-  if (!j.token){ alert(j.error || '認証失敗'); return null; }
-  sessionStorage.setItem('adminToken', j.token);
-  document.body.classList.add('admin-visible');
-  $('#btn-admin-login').classList.add('hidden');
-  $('#btn-admin-logout').classList.remove('hidden');
-  switchTo('admin');
-  return j.token;
-}
+let spins = 0;  // 残り回数
+let rarityRates = {}; // レア度確率（管理画面）
 
-function adminLogout(){
-  sessionStorage.removeItem('adminToken');
-  document.body.classList.remove('admin-visible');
-  $('#btn-admin-login').classList.remove('hidden');
-  $('#btn-admin-logout').classList.add('hidden');
-  switchTo('gacha');
-}
-$('#btn-admin-login').addEventListener('click', adminToken);
-$('#btn-admin-logout').addEventListener('click', adminLogout);
+/* ==========================================================
+    DOM 取得
+========================================================== */
+const spinBtn = document.getElementById("spinBtn");
+const spin10Btn = document.getElementById("spin10Btn");
+const spinCountText = document.getElementById("spinCount");
+const completeText = document.getElementById("completeText");
 
-// initial state
-if (sessionStorage.getItem('adminToken')){
-  document.body.classList.add('admin-visible');
-  $('#btn-admin-login').classList.add('hidden');
-  $('#btn-admin-logout').classList.remove('hidden');
+// レア度ごとのマイコレブロック
+const colSuperRare = document.getElementById("col-superrare");
+const colRare = document.getElementById("col-rare");
+const colCommon = document.getElementById("col-common");
+const colNormal = document.getElementById("col-normal");
+
+// レア度ラベル
+const rateSuperrareInput = document.getElementById("rate-superrare");
+const rateRareInput = document.getElementById("rate-rare");
+const rateCommonInput = document.getElementById("rate-common");
+const rateNormalInput = document.getElementById("rate-normal");
+const saveRatesBtn = document.getElementById("saveRatesBtn");
+
+// ガチャ演出の表示枠
+const gachaDisplay = document.getElementById("gachaDisplay");
+const gachaImage = document.getElementById("gachaImage");
+const gachaVideo = document.getElementById("gachaVideo");
+
+// エラー表示
+function showError(msg) {
+  alert(msg);
 }
 
-// Spins
-async function loadSpins(){
-  const j = await api(`/api/device?deviceId=${encodeURIComponent(deviceId)}`);
-  if (j && j.spins != null) $('#spins').textContent = j.spins;
-}
-loadSpins();
-
-// Roll flow
-$('#btn-roll').addEventListener('click', async ()=>{
-  stopStageVideos();
-  const res = await api('/api/spin', {method:'POST', body:JSON.stringify({deviceId})});
-  if(!res.ok){ alert(res.error || '失敗しました'); return; }
+/* ==========================================================
+    初期ロード
+========================================================== */
+async function init() {
   await loadSpins();
-
-  const rarity = res.prize.rarity;
-  const anim = $('#rarity-anim');
-  const result = $('#result-video');
-  const illust = $('#gacha-illust');
-
-  const sfx = new Audio(`sfx/${rarity}.mp3`);
-  anim.src = `animations/${rarity}.mp4`;
-
-  illust.classList.add('hidden');
-  anim.classList.remove('hidden');
-  anim.currentTime = 0;
-  anim.muted = false;
-  try { await anim.play(); } catch {}
-  setTimeout(()=>{ sfx.play().catch(()=>{}); }, 300);
-
-  anim.onended = async ()=>{
-    anim.classList.add('hidden');
-    try { sfx.pause(); sfx.currentTime = 0; } catch {}
-    result.src = res.prize.video_url;
-    result.classList.remove('hidden');
-    result.currentTime = 0;
-    try { await result.play(); } catch {}
-    result.onended = ()=>{
-      result.classList.add('hidden');
-      illust.classList.remove('hidden');
-    };
-  };
-});
-
-// Redeem Serial
-$('#btn-redeem').addEventListener('click', async ()=>{
-  const code = $('#serial').value.trim();
-  if(!code) return alert('コードを入力してください');
-  const res = await api('/api/redeem-serial',{method:'POST',body:JSON.stringify({code,deviceId})});
-  if(res.ok){
-    alert('追加されました');
-    await loadSpins();
-  } else alert(res.error || '失敗しました');
-});
-
-// --- Serial Issue + List ---
-async function loadSerials(){
-  const wrap = $('#serial-list');
-  if (!wrap) return;
-  wrap.innerHTML = '読み込み中...';
-  const token = sessionStorage.getItem('adminToken') || await adminToken();
-  if (!token){ wrap.innerHTML = '管理者ログインが必要です'; return; }
-  const r = await fetch('/api/admin/serials', { headers:{'Authorization':'Bearer '+token} });
-  if (r.status === 404){
-    wrap.innerHTML = '404: /api/admin/serials が見つかりません（Service(Node) で起動してください）。';
-    return;
-  }
-  const rows = (await safeJson(r)) || [];
-
-  const t = document.createElement('table');
-  t.className = 'serial-list-table';
-  t.innerHTML = `<thead>
-    <tr><th>コード</th><th>回数</th><th>使用</th><th>使用端末</th><th>使用日時</th></tr>
-  </thead><tbody></tbody>`;
-  const tb = t.querySelector('tbody');
-  (rows||[]).forEach(r=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td><span class="serial-badge">${r.code}</span></td>
-                    <td>${r.spins}</td>
-                    <td>${r.used ? '済' : '未'}</td>
-                    <td>${r.used_by_device || '-'}</td>
-                    <td>${r.used_at || '-'}</td>`;
-    tb.appendChild(tr);
-  });
-  wrap.innerHTML = '';
-  wrap.appendChild(t);
+  await loadCollection();
+  await loadRarityRates();
 }
+window.onload = init;
 
-$('#btn-issue-serial').addEventListener('click', async ()=>{
-  const code = ($('#serial-code').value || '').trim();
-  const spins = +$('#serial-spins').value || 1;
-  const token = await adminToken();
-  if (!token) return;
-
-  let r;
+/* ---------------------------------------------
+    残り回数を取得
+--------------------------------------------- */
+async function loadSpins() {
   try {
-    r = await fetch('/api/admin/serials/issue',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({code,spins})
-    });
+    const res = await fetch(`/api/device?deviceId=${deviceId}`);
+    const json = await res.json();
+    spins = json.spins || 0;
+    spinCountText.textContent = spins;
   } catch (e) {
-    $('#serial-status').textContent = '接続に失敗しました: ' + e;
-    return;
+    console.error(e);
+    showError("回数読み込みに失敗しました");
   }
-  const statusBox = $('#serial-status');
-  if (r.status === 404){
-    statusBox.textContent = '404: /api/admin/serials/issue が見つかりません。Railway のサービス種別（Static→✗ / Service(Node)→◎）と Start/Port を確認してください。';
-    return;
-  }
-  const d = await safeJson(r);
-  if (r.ok && d.ok){
-    statusBox.innerHTML = `<span class="serial-badge">${d.code}</span> を登録しました（${d.spins}回）`;
-    if (!code) $('#serial-code').value = d.code;
-    loadSerials();
-  } else {
-    statusBox.textContent = `失敗: ${d.error || ('HTTP '+r.status)}`;
-  }
-});
-
-// Prize Create
-document.querySelector('#form-prize').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const token = await adminToken();
-  if (!token) return;
-
-  const fd = new FormData();
-  fd.append('title', document.querySelector('#p-title').value || '');
-  fd.append('percent', document.querySelector('#p-percent').value || '0');
-  fd.append('rarity', document.querySelector('#p-rarity').value || 'normal');
-  const file = document.querySelector('#p-video').files[0];
-  if (!file) return alert('動画を選択してください');
-  fd.append('video', file);
-
-  let r;
-  try{
-    r = await fetch('/api/admin/prizes/create',{
-      method:'POST',
-      headers:{ 'Authorization':'Bearer '+(sessionStorage.getItem('adminToken')||'') },
-      body: fd
-    });
-  }catch(e){
-    alert('接続に失敗しました: ' + e);
-    return;
-  }
-  if (r.status === 404){
-    alert('404: /api/admin/prizes/create が見つかりません。Railway のサービス種別を確認してください（StaticではなくNode Service）。');
-    return;
-  }
-  const d = await safeJson(r);
-  alert(r.ok && d.ok ? '登録しました' : (d.error || '失敗しました'));
-  if (r.ok && d.ok) {
-    document.querySelector('#form-prize').reset();
-    renderPrizeList();
-  }
-});
-
-// Admin prize list
-async function renderPrizeList(){
-  const wrap = $('#prize-list');
-  wrap.innerHTML = '読み込み中...';
-  const token = sessionStorage.getItem('adminToken') || await adminToken();
-  if (!token){ wrap.innerHTML = '管理者ログインが必要です'; return; }
-
-  const r = await fetch('/api/admin/prizes', { headers:{'Authorization':'Bearer '+token} });
-  if (r.status === 404){
-    wrap.innerHTML = '404: /api/admin/prizes が見つかりません。Railway のサービス種別を確認してください（StaticではなくNode Service）。';
-    return;
-  }
-  const rows = await safeJson(r);
-  if (!Array.isArray(rows)) { wrap.innerHTML = '読み込み失敗'; return; }
-
-  const el = document.createElement('table');
-  el.className = 'table';
-  el.innerHTML = `
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>タイトル</th>
-        <th>確率(%)</th>
-        <th>レア</th>
-        <th>動画(差替え)</th>
-        <th>有効</th>
-        <th>プレビュー</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  `;
-  const tb = el.querySelector('tbody');
-
-  rows.forEach(r=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${r.id}</td>
-      <td><input type="text" value="${r.title ?? ''}"></td>
-      <td><input type="number" step="0.01" value="${r.weight ?? 0}"></td>
-      <td>
-        <select>
-          ${['normal','common','rare','superrare'].map(x=>`<option value="${x}" ${r.rarity===x?'selected':''}>${x}</option>`).join('')}
-        </select>
-      </td>
-      <td><input type="file" accept="video/*"></td>
-      <td><input type="checkbox" ${r.enabled? 'checked':''}></td>
-      <td><span class="badge">${r.video_path || ''}</span></td>
-      <td class="actions">
-        <button class="secondary btn-save">保存</button>
-        <button class="secondary btn-del">削除</button>
-      </td>
-    `;
-    const [titleI, percentI, rarityS, fileI, enabledI] = [
-      tr.children[1].querySelector('input'),
-      tr.children[2].querySelector('input'),
-      tr.children[3].querySelector('select'),
-      tr.children[4].querySelector('input[type="file"]'),
-      tr.children[5].querySelector('input[type="checkbox"]'),
-    ];
-
-    tr.querySelector('.btn-save').addEventListener('click', async ()=>{
-      const fd = new FormData();
-      fd.append('id', r.id);
-      fd.append('title', titleI.value);
-      fd.append('percent', percentI.value);
-      fd.append('rarity', rarityS.value);
-      fd.append('enabled', enabledI.checked ? 1 : 0);
-      if (fileI.files[0]) fd.append('video', fileI.files[0]);
-
-      const resp = await fetch('/api/admin/prizes/update',{
-        method:'POST',
-        headers:{ 'Authorization':'Bearer '+(sessionStorage.getItem('adminToken')||'') },
-        body: fd
-      });
-      const j = await safeJson(resp);
-      alert(resp.ok && j.ok ? '保存しました' : (j.error || '保存失敗'));
-      if (resp.ok && j.ok) renderPrizeList();
-    });
-
-    tr.querySelector('.btn-del').addEventListener('click', async ()=>{
-      if (!confirm('削除してよろしいですか？')) return;
-      const resp = await fetch('/api/admin/prizes/delete',{
-        method:'POST',
-        headers:{ 'Authorization':'Bearer '+(sessionStorage.getItem('adminToken')||''), 'Content-Type':'application/json' },
-        body: JSON.stringify({ id: r.id })
-      });
-      const j = await safeJson(resp);
-      alert(resp.ok && j.ok ? '削除しました' : (j.error || '削除失敗'));
-      if (resp.ok && j.ok) renderPrizeList();
-    });
-
-    tb.appendChild(tr);
-  });
-
-  wrap.innerHTML = '';
-  wrap.appendChild(el);
 }
 
-// My Collection with save button for mobile
-async function loadCollection(){
-  const list = $('#collection-list');
-  list.innerHTML = '<li>読み込み中...</li>';
-  const rows = await api(`/api/my-collection?deviceId=${encodeURIComponent(deviceId)}`);
-  list.innerHTML = '';
-  if (!rows.length){
-    list.innerHTML = '<li>まだコレクションがありません</li>';
-    return;
+/* ---------------------------------------------
+    レア度率読み込み（管理）
+--------------------------------------------- */
+async function loadRarityRates() {
+  try {
+    const token = localStorage.getItem("adminToken");
+    if (!token) return;
+
+    const res = await fetch(`/api/admin/rarity-rates`, {
+      headers: { "Authorization": "Bearer " + token }
+    });
+    const list = await res.json();
+
+    list.forEach(r => {
+      rarityRates[r.rarity] = r.rate;
+    });
+
+    rateSuperrareInput.value = rarityRates.superrare;
+    rateRareInput.value = rarityRates.rare;
+    rateCommonInput.value = rarityRates.common;
+    rateNormalInput.value = rarityRates.normal;
+
+  } catch (e) {
+    console.error(e);
   }
-  rows.forEach(r=>{
-    const li = document.createElement('li');
+}
 
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    const count = r.owned_count && Number(r.owned_count) > 1 ? ` ×${r.owned_count}` : '';
-    const when = r.obtained_at ? new Date(r.obtained_at).toLocaleString() : '';
-    meta.textContent = `${r.title}${count} / ${r.rarity} / ${when}`;
+/* ---------------------------------------------
+    レア度確率更新
+--------------------------------------------- */
+saveRatesBtn?.addEventListener("click", async () => {
+  try {
+    const token = localStorage.getItem("adminToken");
+    if (!token) return showError("管理者ログインが必要です");
 
-    const v = document.createElement('video');
-    v.src = `/uploads/${r.video_path}`;
-    v.controls = true;
+    const body = {
+      superrare: Number(rateSuperrareInput.value),
+      rare: Number(rateRareInput.value),
+      common: Number(rateCommonInput.value),
+      normal: Number(rateNormalInput.value)
+    };
 
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    const btn = document.createElement('button');
-    btn.className = 'secondary';
-    btn.textContent = '保存';
-    btn.addEventListener('click', async ()=>{
-      const url = `/download/${encodeURIComponent(r.video_path)}`;
-      try {
-        window.location.href = url;
-      } catch (e) {
-        try {
-          const resp = await fetch(`/uploads/${r.video_path}`);
-          const blob = await resp.blob();
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = r.video_path || 'video.mp4';
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(()=>{
-            URL.revokeObjectURL(a.href);
-            a.remove();
-          }, 1000);
-        } catch (e2) {
-          alert('保存に失敗しました: ' + e2);
-        }
+    const res = await fetch(`/api/admin/rarity-rates/update`, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    const json = await res.json();
+    if (json.ok) {
+      alert("保存しました！");
+      loadRarityRates();
+    } else {
+      showError("保存に失敗");
+    }
+
+  } catch (e) {
+    console.error(e);
+    showError("保存時にエラー");
+  }
+});
+/* ==========================================================
+    マイコレクション取得（レア度4段で表示）
+========================================================== */
+async function loadCollection() {
+  try {
+    const res = await fetch(`/api/my-collection?deviceId=${deviceId}`);
+    const list = await res.json();
+
+    /* 4段ブロックを全部クリア */
+    colSuperRare.innerHTML = "";
+    colRare.innerHTML = "";
+    colCommon.innerHTML = "";
+    colNormal.innerHTML = "";
+
+    /* 種類数カウント */
+    const owned = new Set();
+    list.forEach(item => owned.add(item.video_path));
+
+    /* 全景品数を取得してコンプリート残数を算出 */
+    const total = await fetchTotalPrizes();
+    const remaining = total - owned.size;
+
+    completeText.textContent = `コンプリートまで残り ${remaining} 種類！`;
+    completeText.style.color = remaining <= 10 ? "red" : "black";
+
+    /* レア度ごとに追加 */
+    list.forEach(item => {
+      const box = document.createElement("div");
+      box.className = "collection-item";
+
+      /* 動画の1フレーム目をサムネ化 */
+      const thumb = document.createElement("video");
+      thumb.src = "/uploads/" + item.video_path;
+      thumb.className = "collection-thumb";
+      thumb.muted = true;
+      thumb.playsInline = true;
+      thumb.preload = "metadata";
+
+      box.appendChild(thumb);
+
+      /* タップすると動画再生 */
+      box.onclick = () => {
+        playCollectionVideo(item.video_path);
+      };
+
+      switch (item.rarity) {
+        case "superrare":
+          colSuperRare.appendChild(box);
+          break;
+        case "rare":
+          colRare.appendChild(box);
+          break;
+        case "common":
+          colCommon.appendChild(box);
+          break;
+        default:
+          colNormal.appendChild(box);
       }
     });
 
-    actions.appendChild(btn);
-    li.appendChild(meta);
-    li.appendChild(v);
-    li.appendChild(actions);
-    list.appendChild(li);
+  } catch (e) {
+    console.error(e);
+    showError("マイコレクション読み込み失敗");
+  }
+}
+
+/* ---------------------------------------------
+    全景品数を取得（コンプリート判定用）
+--------------------------------------------- */
+async function fetchTotalPrizes() {
+  try {
+    const token = localStorage.getItem("adminToken");
+    const res = await fetch(`/api/admin/prizes`, {
+      headers: token ? { "Authorization": "Bearer " + token } : {}
+    });
+    const list = await res.json();
+    return list.length;
+  } catch {
+    return 0;
+  }
+}
+
+/* ---------------------------------------------
+    マイコレ動画を再生
+--------------------------------------------- */
+function playCollectionVideo(videoPath) {
+  gachaImage.style.display = "none";
+  gachaVideo.style.display = "block";
+  gachaVideo.src = "/uploads/" + videoPath;
+  gachaVideo.play();
+
+  gachaVideo.onended = () => {
+    gachaVideo.style.display = "none";
+    gachaImage.style.display = "block";
+  };
+}
+/* ==========================================================
+    ガチャ演出（単発）
+========================================================== */
+spinBtn.addEventListener("click", async () => {
+  if (spins <= 0) return showError("回数がありません");
+
+  try {
+    const res = await fetch("/api/spin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId })
+    });
+    const json = await res.json();
+    if (!json.ok) return showError(json.error || "ガチャ失敗");
+
+    spins -= 1;
+    spinCountText.textContent = spins;
+
+    await playGachaResult(json.prize, true); // 新規動画は演出あり
+
+    await loadCollection();
+  } catch (e) {
+    console.error(e);
+    showError("ガチャ通信エラー");
+  }
+});
+
+/* ==========================================================
+    10連ガチャ
+========================================================== */
+spin10Btn.addEventListener("click", async () => {
+  if (spins < 10) return showError("10回分の回数がありません");
+
+  try {
+    const res = await fetch("/api/spin10", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId })
+    });
+    const json = await res.json();
+    if (!json.ok) return showError("10連に失敗");
+
+    spins -= 10;
+    spinCountText.textContent = spins;
+
+    // 10件順番に演出
+    for (const r of json.results) {
+      if (r.isNew) {
+        // 新規 → 普通に演出＋動画再生
+        await playGachaResult(r, true);
+      } else {
+        // 重複 → サムネ表示のみ（スキップ）
+        await playDuplicateThumb(r.video_path, r.rarity);
+      }
+    }
+
+    await loadCollection();
+
+  } catch (e) {
+    console.error(e);
+    showError("10連通信エラー");
+  }
+});
+
+/* ==========================================================
+    新規動画 → ガチャ演出 → 再生
+========================================================== */
+async function playGachaResult(prize, animate = true) {
+  gachaVideo.pause();
+  gachaVideo.style.display = "none";
+
+  if (animate) {
+    gachaImage.classList.add("gacha-anim");
+    await wait(800);
+    gachaImage.classList.remove("gacha-anim");
+  }
+
+  // 動画を同じ領域で再生
+  gachaImage.style.display = "none";
+  gachaVideo.style.display = "block";
+  gachaVideo.src = "/uploads/" + prize.video_path;
+  gachaVideo.play();
+
+  await new Promise(res => {
+    gachaVideo.onended = () => {
+      gachaVideo.style.display = "none";
+      gachaImage.style.display = "block";
+      res();
+    };
   });
+}
+
+/* ==========================================================
+    重複 → サムネを一瞬出すだけの演出
+========================================================== */
+async function playDuplicateThumb(videoPath, rarity) {
+  gachaVideo.pause();
+  gachaVideo.style.display = "none";
+
+  // 一瞬サムネ差し替え
+  gachaImage.src = "/uploads/" + videoPath;
+  gachaImage.classList.add("duplicate-flash");
+
+  await wait(600);
+
+  gachaImage.classList.remove("duplicate-flash");
+  gachaImage.src = "./img/gachapon.png"; // 初期のガチャ画像に戻す
+}
+
+/* ---------------------------------------------
+    待機用
+--------------------------------------------- */
+function wait(ms) {
+  return new Promise(res => setTimeout(res, ms));
 }
