@@ -1,221 +1,228 @@
-/* ----------------------------------------------
-   全体
----------------------------------------------- */
+/* ----------------------------------
+   全体レイアウト
+---------------------------------- */
 body {
-    font-family: "メイリオ", sans-serif;
+    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    background: #f9f9f9;
     margin: 0;
     padding: 0;
-    background: #fafafa;
-    color: #333;
-}
-
-/* ----------------------------------------------
-   タブメニュー
----------------------------------------------- */
-.tabMenu {
-    display: flex;
-    justify-content: center;
-    background: #eee;
-    padding: 10px;
-    gap: 8px;
-}
-.tabBtn {
-    padding: 10px 20px;
-    border: none;
-    background: #ccc;
-    border-radius: 6px;
-    font-size: 16px;
-}
-.tabBtn:hover {
-    background: #bbb;
-}
-
-.page {
-    padding: 15px;
-}
-
-/* ----------------------------------------------
-   ガチャ画面タイトル
----------------------------------------------- */
-.tabTitle {
     text-align: center;
+}
+
+/* 上部タブ */
+.tab-button {
+    padding: 10px 20px;
+    margin: 10px 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    background: #ddd;
+}
+.tab-button.active {
+    background: #f9c74f;
+}
+
+/* ----------------------------------
+   ガチャエリア全体
+---------------------------------- */
+#gacha-section {
+    margin-top: 40px;
+}
+
+/* 残り回数 */
+#spinCount {
+    display: block;
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+/* ----------------------------------
+   ガチャ筐体画像（ベース）
+---------------------------------- */
+#gachapon-container {
+    position: relative;
+    width: 360px;
+    margin: 0 auto;
+}
+
+#gachapon-image {
+    width: 100%;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* ----------------------------------
+   ▼ ガチャ演出（動画レイヤー） ▼
+---------------------------------- */
+#effect-video-container {
+    position: absolute;
+    top: 10%;            /* 筐体のガラス部分中央に重ねる */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70%;
+    height: 55%;
+    display: none;       /* 再生時のみ表示 */
+    z-index: 10;         /* 画像より前面 */
+}
+
+#effect-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+/* ----------------------------------
+   ▼ 景品動画（動画レイヤー：演出の後） ▼
+---------------------------------- */
+#prize-video-container {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70%;
+    height: 55%;
+    display: none;
+    z-index: 11;
+}
+
+#prize-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+/* ----------------------------------
+   ▼ サムネイル表示（被り用） ▼
+---------------------------------- */
+#thumbnail-container {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70%;
+    height: 55%;
+    display: none;
+    z-index: 12;
+}
+
+#thumbnail-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+/* ----------------------------------
+   ボタン類
+---------------------------------- */
+.gacha-button {
+    margin: 20px 10px;
+    padding: 14px 30px;
+    font-size: 18px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    background: #f9c74f;
+}
+.gacha-button:active {
+    background: #f9844a;
+}
+
+/* ----------------------------------
+   マイコレクション
+---------------------------------- */
+.collection-row {
+    margin: 20px auto;
+    width: 90%;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.collection-title {
     font-size: 22px;
     margin-bottom: 10px;
 }
 
-/* ----------------------------------------------
-   ▼ ガチャ筐体（中央固定）
----------------------------------------------- */
-#gachaContainer {
-    width: 100%;
-    max-width: 360px;
-    margin: 0 auto;
-    position: relative;
-}
-
-#gachaImage {
-    width: 100%;
-    display: block;
-}
-
-/* ----------------------------------------------
-   ▼ overlay：演出・景品動画・被りサムネ
-   ガチャ筐体の中央に重ねる
----------------------------------------------- */
-.overlayVideo,
-.overlayThumb {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 70%;
-    transform: translate(-50%, -50%);
-    display: none;
-    z-index: 50;
-    border-radius: 12px;
-    background: #000;
-}
-
-/* 景品サムネは少し小さく */
-.overlayThumb {
-    width: 65%;
-    object-fit: cover;
-}
-
-/* ----------------------------------------------
-   残り回数
----------------------------------------------- */
-.spinsBox {
-    margin-top: 10px;
-    text-align: center;
-    font-size: 18px;
-}
-
-/* ----------------------------------------------
-   ガチャボタン
----------------------------------------------- */
-.gachaBtnBox {
-    text-align: center;
-    margin-top: 10px;
-}
-
-.gachaBtn {
-    padding: 12px 25px;
-    margin: 5px;
-    font-size: 18px;
-    border: none;
-    background: #ffce3a;
-    border-radius: 10px;
-}
-.gachaBtn:hover {
-    background: #e7b82d;
-}
-
-/* ----------------------------------------------
-   コンプリート表示
----------------------------------------------- */
-.completeText {
-    text-align: center;
-    font-size: 18px;
-    margin-bottom: 10px;
-    line-height: 1.4;
-}
-
-/* ----------------------------------------------
-   マイコレ
----------------------------------------------- */
-.collectionList {
+/* スクロール横並び */
+.collection-list {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-}
-
-.collectionItem {
-    width: 45%;
-}
-
-.collectionThumb {
-    width: 100%;
-    border-radius: 10px;
-    cursor: pointer;
-    object-fit: cover;
-}
-
-/* ----------------------------------------------
-   動画オーバーレイ（マイコレ）
----------------------------------------------- */
-.videoOverlay {
-    position: fixed;
-    z-index: 200;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    backdrop-filter: blur(4px);
-    background: rgba(0,0,0,0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.videoOverlay video {
-    width: 90%;
-    max-width: 480px;
-    border-radius: 12px;
-}
-
-.closeVideoBtn {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    font-size: 40px;
-    color: #fff;
-    cursor: pointer;
-    z-index: 250;
-}
-
-/* ----------------------------------------------
-   管理系
----------------------------------------------- */
-.adminBtn {
-    padding: 10px 18px;
-    margin-top: 5px;
-    background: #4ea5ff;
-    color: #fff;
-    border-radius: 8px;
-    border: none;
-}
-.adminBtn:hover {
-    background: #2f8de6;
-}
-
-.inputText,
-.selectBox,
-.rateInput,
-.inputFile {
-    width: 80%;
-    padding: 8px;
-    margin-top: 5px;
-    font-size: 15px;
-}
-
-.serialList,
-.prizesList {
+    overflow-x: auto;
+    gap: 15px;
     padding: 10px;
-    background: #f6f6f6;
-    border-radius: 8px;
 }
 
-/* ----------------------------------------------
-   スマホ最適化
----------------------------------------------- */
+.collection-item {
+    min-width: 200px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 5px;
+    box-shadow: 0 0 6px rgba(0,0,0,0.1);
+}
+
+.collection-item video {
+    width: 100%;
+    border-radius: 10px;
+}
+
+.collection-item img {
+    width: 100%;
+    border-radius: 10px;
+}
+
+.collection-item button {
+    margin-top: 5px;
+    padding: 8px 20px;
+}
+
+/* ----------------------------------
+   レア度別の背景色
+---------------------------------- */
+.superrare-bg { background: rgba(186, 85, 211, 0.3); }
+.rare-bg      { background: rgba(255, 215, 0, 0.3); }
+.common-bg    { background: rgba(192, 192, 192, 0.3); }
+.normal-bg    { background: rgba(205, 127, 50, 0.3); }
+
+/* ----------------------------------
+   管理画面
+---------------------------------- */
+.admin-block {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+
+/* 管理の各項目 */
+.admin-block input,
+.admin-block select,
+.admin-block button {
+    margin: 10px;
+    padding: 10px;
+    font-size: 16px;
+}
+
+/* スマホ最適化 */
 @media (max-width: 480px) {
-    .gachaBtn {
-        font-size: 16px;
-        padding: 10px 18px;
+    #gachapon-container {
+        width: 95%;
     }
-    .overlayVideo,
-    .overlayThumb {
-        width: 82%;
+
+    #effect-video-container,
+    #prize-video-container,
+    #thumbnail-container {
+        top: 13%;
+        width: 78%;
+        height: 50%;
+    }
+
+    .gacha-button {
+        width: 90%;
+        margin: 10px auto;
+        display: block;
     }
 }
