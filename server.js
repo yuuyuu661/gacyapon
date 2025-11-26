@@ -12,19 +12,19 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ------------------------------
-//  静的ファイル
-// ------------------------------
+// --------------------------------------------------------
+// Static files
+// --------------------------------------------------------
 app.use(express.static(path.join(__dirname, "public")));
 
-// ------------------------------
-//  DB ファイル
-// ------------------------------
+// --------------------------------------------------------
+// DB file
+// --------------------------------------------------------
 const DB_PATH = path.join(__dirname, "data.json");
 
-// ------------------------------
-//  DB 読み込み
-// ------------------------------
+// --------------------------------------------------------
+// Load DB
+// --------------------------------------------------------
 function loadDB() {
     if (!fs.existsSync(DB_PATH)) {
         return {
@@ -36,16 +36,16 @@ function loadDB() {
     return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
 }
 
-// ------------------------------
-//  DB 保存
-// ------------------------------
+// --------------------------------------------------------
+// Save DB
+// --------------------------------------------------------
 function saveDB(data) {
     fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), "utf8");
 }
 
-// ======================================================
-//  API：残り回数を取得
-// ======================================================
+// --------------------------------------------------------
+// Get spins
+// --------------------------------------------------------
 app.get("/api/spins", (req, res) => {
     const user = req.query.user;
     const db = loadDB();
@@ -55,14 +55,15 @@ app.get("/api/spins", (req, res) => {
     return res.json({ spins: db.users[user].spins });
 });
 
-// ======================================================
-//  API：ガチャ（単発・10連）
-– ======================================================
+// --------------------------------------------------------
+// Spin gacha
+// --------------------------------------------------------
 app.get("/api/spin", (req, res) => {
     const user = req.query.user;
     const count = Number(req.query.count || 1);
 
     const db = loadDB();
+
     if (!db.users[user]) db.users[user] = { spins: 0 };
 
     if (db.users[user].spins < count) {
@@ -71,7 +72,6 @@ app.get("/api/spin", (req, res) => {
 
     db.users[user].spins -= count;
 
-    // ランダム景品
     const prize = db.prizes.length
         ? db.prizes[Math.floor(Math.random() * db.prizes.length)]
         : null;
@@ -85,16 +85,18 @@ app.get("/api/spin", (req, res) => {
     });
 });
 
-// ======================================================
-//  API：シリアルコード登録（管理者）
-// ======================================================
+// --------------------------------------------------------
+// Issue serial (admin)
+// --------------------------------------------------------
 app.post("/api/admin/serials/issue", (req, res) => {
     const { code, amount } = req.body;
-    if (!code) return res.status(400).json({ error: "code required" });
+
+    if (!code) {
+        return res.status(400).json({ error: "code required" });
+    }
 
     const db = loadDB();
 
-    // 同じコードでも別レコードとして保存（←ゆうさんの要望）
     db.serials.push({
         id: Date.now(),
         code,
@@ -105,21 +107,26 @@ app.post("/api/admin/serials/issue", (req, res) => {
 
     saveDB(db);
 
-    res.json({ success: true });
+    return res.json({ success: true });
 });
 
-// ======================================================
-//  API：シリアル利用
-// ======================================================
+// --------------------------------------------------------
+// Redeem serial
+// --------------------------------------------------------
 app.post("/api/redeem-serial", (req, res) => {
     const { user, code } = req.body;
 
-    if (!code) return res.status(400).json({ error: "invalid serial" });
+    if (!code) {
+        return res.status(400).json({ error: "invalid serial" });
+    }
 
     const db = loadDB();
+
     if (!db.users[user]) db.users[user] = { spins: 0 };
 
-    const serial = db.serials.find(s => s.code === code && !s.used);
+    const serial = db.serials.find(
+        (s) => s.code === code && s.used === false
+    );
 
     if (!serial) {
         return res.status(400).json({ error: "invalid or used serial" });
@@ -129,6 +136,7 @@ app.post("/api/redeem-serial", (req, res) => {
     serial.usedAt = Date.now();
 
     db.users[user].spins += serial.amount;
+
     saveDB(db);
 
     return res.json({
@@ -138,16 +146,18 @@ app.post("/api/redeem-serial", (req, res) => {
     });
 });
 
-// ======================================================
-//  API：景品登録（管理）
-// ======================================================
+// --------------------------------------------------------
+// Register prize
+// --------------------------------------------------------
 app.post("/api/admin/prizes", (req, res) => {
     const { name, rarity, url } = req.body;
+
     if (!name || !rarity || !url) {
         return res.status(400).json({ error: "missing fields" });
     }
 
     const db = loadDB();
+
     db.prizes.push({
         id: Date.now(),
         name,
@@ -156,32 +166,34 @@ app.post("/api/admin/prizes", (req, res) => {
     });
 
     saveDB(db);
-    res.json({ success: true });
+
+    return res.json({ success: true });
 });
 
-// ======================================================
-//  API：景品一覧取得
-// ======================================================
+// --------------------------------------------------------
+// Get all prizes
+// --------------------------------------------------------
 app.get("/api/collection", (req, res) => {
     const db = loadDB();
-    res.json(db.prizes || []);
+    return res.json(db.prizes || []);
 });
 
-// ======================================================
-//  管理ログイン（簡易版）
-// ======================================================
+// --------------------------------------------------------
+// Admin login
+// --------------------------------------------------------
 app.post("/api/admin/login", (req, res) => {
     const { password } = req.body;
 
     if (password === process.env.ADMIN_PASSWORD) {
         return res.json({ success: true });
     }
+
     return res.status(400).json({ success: false });
 });
 
-// ======================================================
-//  サーバー起動
-// ======================================================
+// --------------------------------------------------------
+// Start server
+// --------------------------------------------------------
 app.listen(PORT, () => {
-    console.log("Server running at port", PORT);
+    console.log("Server running on port", PORT);
 });
