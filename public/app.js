@@ -1,491 +1,343 @@
-/* =========================================================
-   app.js（レアリティ抽選対応版 / タイトル・確率廃止版）
-   ========================================================= */
+/* app.js 完全版 */
 
-const $ = (sel) => document.querySelector(sel);
+const $ = (q)=> document.querySelector(q);
+const api = (url, opt={}) =>
+  fetch(url, {
+    headers:{ 'Content-Type':'application/json' },
+    ...opt
+  }).then(r=>r.json());
 
-/* ---------- Safe JSON ---------- */
-async function safeJson(res){
-  const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) {
-    try { return await res.json(); }
-    catch { return { ok:false, error:'Invalid JSON', status: res.status }; }
-  } else {
-    const text = await res.text().catch(()=> '');
-    return { ok:false, error: text || ('HTTP '+res.status), status: res.status };
-  }
+let deviceId = localStorage.getItem('deviceId');
+if (!deviceId){
+  deviceId = 'd'+Math.random().toString(36).slice(2);
+  localStorage.setItem('deviceId', deviceId);
 }
 
-async function api(url, opt = {}){
-  try {
-    const r = await fetch(url, { headers:{'Content-Type':'application/json'}, ...opt });
-    const data = await safeJson(r);
-    if (!r.ok && data && !data.error) data.error = 'HTTP '+r.status;
-    return data;
-  } catch (e){
-    return { ok:false, error:String(e) };
-  }
-}
+let adminToken = null;
 
-/* ---------- Tabs ---------- */
-function stopStageVideos(){
-  ['rarity-anim','result-video'].forEach(id=>{
-    const v = document.getElementById(id);
-    v.pause?.();
-    v.currentTime = 0;
-    v.classList.add('hidden');
+/* ---------- タブ切り替え ---------- */
+const tabs = document.querySelectorAll('#tabs button');
+tabs.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab')
+      .forEach(t=> t.style.display='none');
+
+    const id = btn.dataset.tab;
+    $('#tab-'+id).style.display='block';
+
+    if (id === 'collection') loadCollection();
+    if (id === 'gacha') updateCompleteStatus();
+    if (id === 'admin') loadAdminData();
   });
-  $('#gacha-illust').classList.remove('hidden');
-}
+});
+tabs[0].click();
 
-function switchTo(tabName){
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  const target = document.querySelector(`#tab-${tabName}`);
-  if (target) target.classList.add('active');
+/* ---------- 管理ログイン ---------- */
+$('#btn-admin-login').addEventListener('click', async ()=>{
+  const pw = prompt('管理者パスワード');
+  if (!pw) return;
 
-  if (tabName === 'collection') loadCollection();
-  if (tabName === 'gacha') { stopStageVideos(); loadSpins(); }
-  if (tabName === 'admin') {
-    renderPrizeList();
-    loadSerials();
-    loadRarityWeights();
-  }
-}
+  const res = await api('/api/admin/login', {
+    method:'POST',
+    body:JSON.stringify({ password:pw })
+  });
 
-document.getElementById('tabs').addEventListener('click', (e)=>{
-  if (e.target.tagName !== 'BUTTON') return;
-  const tab = e.target.dataset.tab;
+  if (res.error) return alert(res.error);
 
-  if (tab === 'admin' && !sessionStorage.getItem('adminToken')){
-    alert('最初に「管理ログイン」してください');
-    return;
-  }
-  switchTo(tab);
+  adminToken = res.token;
+  $('#btn-admin-login').classList.add('hidden');
+  $('#btn-admin-logout').classList.remove('hidden');
+
+  document.querySelectorAll('.admin-only')
+    .forEach(e=> e.style.display='inline-block');
+
+  loadAdminData();
 });
 
-/* ---------- Device ID ---------- */
-function ensureDeviceId(){
-  let id = localStorage.getItem('deviceId');
-  if (!id){
-    id = (crypto && crypto.randomUUID) ? crypto.randomUUID() :
-        (Date.now()+'-'+Math.random().toString(36).slice(2));
-    localStorage.setItem('deviceId', id);
-  }
-  return id;
-}
-const deviceId = ensureDeviceId();
-
-/* ---------- Admin Login ---------- */
-async function adminToken(){
-  let token = sessionStorage.getItem('adminToken');
-  if (token) return token;
-
-  const pass = prompt('管理パスワードを入力');
-  if (!pass) return null;
-
-  let r;
-  try {
-    r = await fetch('/api/admin/login',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({password: pass})
-    });
-  } catch (e){
-    alert('接続に失敗: '+e);
-    return null;
-  }
-
-  if (r.status === 404){
-    alert('404: /api/admin/login が見つかりません');
-    return null;
-  }
-
-  const j = await safeJson(r);
-  if (!r.ok || !j.token){
-    alert(j.error || '認証失敗');
-    return null;
-  }
-
-  sessionStorage.setItem('adminToken', j.token);
-  document.body.classList.add('admin-visible');
-  $('#btn-admin-login').classList.add('hidden');
-  $('#btn-admin-logout').classList.remove('hidden');
-  switchTo('admin');
-  return j.token;
-}
-
-function adminLogout(){
-  sessionStorage.removeItem('adminToken');
-  document.body.classList.remove('admin-visible');
+$('#btn-admin-logout').addEventListener('click', ()=>{
+  adminToken = null;
   $('#btn-admin-login').classList.remove('hidden');
   $('#btn-admin-logout').classList.add('hidden');
-  switchTo('gacha');
-}
-$('#btn-admin-login').addEventListener('click', adminToken);
-$('#btn-admin-logout').addEventListener('click', adminLogout);
 
-if (sessionStorage.getItem('adminToken')){
-  document.body.classList.add('admin-visible');
-  $('#btn-admin-login').classList.add('hidden');
-  $('#btn-admin-logout').classList.remove('hidden');
-}
+  document.querySelectorAll('.admin-only')
+    .forEach(e=> e.style.display='none');
+});
 
-/* ---------- Spins ---------- */
+/* ---------- 残り回数 ---------- */
 async function loadSpins(){
-  const j = await api(`/api/device?deviceId=${encodeURIComponent(deviceId)}`);
-  if (j && j.spins != null) $('#spins').textContent = j.spins;
+  const res = await api(`/api/device?deviceId=${deviceId}`);
+  $('#spins').textContent = res.spins ?? 0;
 }
-loadSpins();
 
-/* ---------- Roll Gacha ---------- */
+/* ---------- マイコレクション ---------- */
+async function loadCollection(){
+  const res = await api(`/api/my-collection?deviceId=${deviceId}`);
+  const ul = $('#collection-list');
+  ul.innerHTML = '';
+
+  res.forEach(x=>{
+    const li = document.createElement('li');
+    li.textContent = `${x.rarity} : ${x.video_path} (${x.owned_count})`;
+    ul.appendChild(li);
+  });
+}
+
+/* ---------- コンプリート状況 ---------- */
+async function updateCompleteStatus(){
+  const all = await api('/api/all-prizes');
+  const owned = await api(`/api/my-collection?deviceId=${deviceId}`);
+
+  const allIds = all.all.map(x=>x.id);
+  const ownedIds = owned.map(x=>x.id);
+
+  const missing = allIds.filter(id => !ownedIds.includes(id)).length;
+
+  const el = $('#complete-status');
+
+  if (missing === 0){
+    el.style.color = 'gold';
+    el.textContent = 'コンプリートおめでとう！特典動画プレゼントするね！';
+    $('#btn-bonus').classList.remove('hidden');
+  } else {
+    $('#btn-bonus').classList.add('hidden');
+    el.textContent = `コンプリートまで残り ${missing} 種類！`;
+    el.style.color = missing <=9 ? 'red' : 'black';
+  }
+}
+
+/* ---------- 特典動画 ---------- */
+$('#btn-bonus').addEventListener('click', async ()=>{
+  const res = await api('/api/bonus-video');
+  if (!res.ok) return alert('特典動画がありません');
+
+  const v = $('#result-video');
+  v.src = res.video_url;
+  v.classList.remove('hidden');
+  await v.play();
+  v.classList.add('hidden');
+});
+
+
+/* -----------------------------------
+    ▼ 1回ガチャ
+----------------------------------- */
 $('#btn-roll').addEventListener('click', async ()=>{
-  stopStageVideos();
+  $('#btn-roll').disabled = true;
+  $('#btn-roll10').disabled = true;
 
   const res = await api('/api/spin',{
     method:'POST',
     body: JSON.stringify({ deviceId })
   });
 
-  if (!res.ok){
-    alert(res.error || '失敗しました');
-    return;
-  }
-
   await loadSpins();
 
-  const rarity = res.prize.rarity;
-  const anim = $('#rarity-anim');
-  const result = $('#result-video');
-  const illust = $('#gacha-illust');
+  const isNew = await checkIsNew(res.prize.id);
 
-  const sfx = new Audio(`sfx/${rarity}.mp3`);
-  anim.src = `animations/${rarity}.mp4`;
+  if (isNew){
+    await playNormalResult(res);
+  } else {
+    await playDuplicateResult(res);
+  }
 
-  illust.classList.add('hidden');
-  anim.classList.remove('hidden');
-  anim.currentTime = 0;
-  anim.muted = false;
+  updateCompleteStatus();
 
-  try { await anim.play(); } catch {}
-  setTimeout(()=>{ sfx.play().catch(()=>{}); }, 300);
-
-  anim.onended = async ()=>{
-    anim.classList.add('hidden');
-    try { sfx.pause(); sfx.currentTime = 0; } catch {}
-
-    result.src = res.prize.video_url;
-    result.classList.remove('hidden');
-    result.currentTime = 0;
-    try { await result.play(); } catch {}
-
-    result.onended = ()=>{
-      result.classList.add('hidden');
-      illust.classList.remove('hidden');
-    };
-  };
+  $('#btn-roll').disabled = false;
+  $('#btn-roll10').disabled = false;
 });
 
-/* ---------- Serial Redeem ---------- */
+/* -----------------------------------
+    ▼ 10回ガチャ
+----------------------------------- */
+$('#btn-roll10').addEventListener('click', async ()=>{
+  const current = Number($('#spins').textContent);
+  if (current < 10) return alert('回数が足りません');
+
+  $('#btn-roll').disabled = true;
+  $('#btn-roll10').disabled = true;
+
+  for (let i=0; i<10; i++){
+    const res = await api('/api/spin',{
+      method:'POST',
+      body: JSON.stringify({ deviceId })
+    });
+
+    await loadSpins();
+
+    const isNew = await checkIsNew(res.prize.id);
+
+    if (isNew){
+      await playNormalResult(res);
+    } else {
+      await playDuplicateResult(res);
+    }
+  }
+
+  updateCompleteStatus();
+  $('#btn-roll').disabled = false;
+  $('#btn-roll10').disabled = false;
+});
+
+/* ---------- 新規獲得チェック ---------- */
+async function checkIsNew(prizeId){
+  const owned = await api(`/api/my-collection?deviceId=${deviceId}`);
+  const ids = owned.map(x=>x.id);
+  return !ids.includes(prizeId);
+}
+
+/* ---------- 初出（動画再生） ---------- */
+async function playNormalResult(res){
+  const rarity = res.prize.rarity;
+  const anim = $('#rarity-anim');
+
+  anim.src = `animations/${rarity}.mp4`;
+  anim.classList.remove('hidden');
+  await anim.play();
+  anim.classList.add('hidden');
+
+  const rv = $('#result-video');
+  rv.src = res.prize.video_url;
+  rv.classList.remove('hidden');
+  await rv.play();
+  rv.classList.add('hidden');
+}
+
+/* ---------- 被り（サムネ2秒） ---------- */
+async function playDuplicateResult(res){
+  const temp = document.createElement('video');
+  temp.src = res.prize.video_url;
+  temp.currentTime = 1.0;
+
+  await new Promise(ok=>{
+    temp.onseeked = ok;
+  });
+
+  const cvs = document.createElement('canvas');
+  cvs.width = temp.videoWidth;
+  cvs.height = temp.videoHeight;
+  cvs.getContext('2d').drawImage(temp,0,0);
+
+  const img = $('#thumb-preview');
+  img.src = cvs.toDataURL();
+  img.classList.remove('hidden');
+
+  await new Promise(ok=> setTimeout(ok,2000));
+  img.classList.add('hidden');
+}
+
+/* ---------- シリアル回数追加 ---------- */
 $('#btn-redeem').addEventListener('click', async ()=>{
   const code = $('#serial').value.trim();
-  if (!code) return alert('コードを入力してください');
+  if (!code) return alert('シリアル番号を入力してください');
 
   const res = await api('/api/redeem-serial',{
     method:'POST',
     body: JSON.stringify({ code, deviceId })
   });
 
-  if (res.ok){
-    alert('追加されました');
-    await loadSpins();
-  } else alert(res.error || '失敗しました');
+  if (res.error) return alert(res.error);
+
+  alert(`${res.added} 回追加しました`);
+  $('#serial').value = '';
+
+  loadSpins();
+  updateCompleteStatus();
 });
 
-/* ---------- Serial List ---------- */
-async function loadSerials(){
-  const wrap = $('#serial-list');
-  wrap.innerHTML = '読み込み中...';
+/* ---------- 管理画面 ---------- */
+async function loadAdminData(){
+  if (!adminToken) return;
 
-  const token = sessionStorage.getItem('adminToken') || await adminToken();
-  if (!token){ wrap.innerHTML = '管理者ログインが必要です'; return; }
+  const headers = { 'Authorization':'Bearer '+adminToken };
 
-  const r = await fetch('/api/admin/serials',{ headers:{'Authorization':'Bearer '+token} });
-  if (r.status === 404){
-    wrap.innerHTML = '404: /api/admin/serials がありません';
-    return;
+  /* ▼ レア */
+  const rw = await fetch('/api/admin/rarity-weights',{ headers }).then(r=>r.json());
+  if (rw.ok){
+    $('#rw-normal').value = rw.data.normal;
+    $('#rw-common').value = rw.data.common;
+    $('#rw-rare').value = rw.data.rare;
+    $('#rw-superrare').value = rw.data.superrare;
   }
 
-  const rows = await safeJson(r);
-  const t = document.createElement('table');
-  t.className = 'serial-list-table';
-  t.innerHTML = `
-    <thead><tr>
-      <th>コード</th><th>回数</th><th>使用</th>
-      <th>使用端末</th><th>使用日時</th>
-    </tr></thead>
-    <tbody></tbody>
-  `;
-
-  const tb = t.querySelector('tbody');
-  (rows || []).forEach(r=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><span class="serial-badge">${r.code}</span></td>
-      <td>${r.spins}</td>
-      <td>${r.used ? '済' : '未'}</td>
-      <td>${r.used_by_device || '-'}</td>
-      <td>${r.used_at || '-'}</td>
-    `;
-    tb.appendChild(tr);
+  /* ▼ 景品一覧 */
+  const plist = await fetch('/api/admin/prizes',{ headers }).then(r=>r.json());
+  const wrap = $('#prize-list');
+  wrap.innerHTML = '';
+  plist.forEach(p=>{
+    const div = document.createElement('div');
+    div.textContent = `ID:${p.id} ${p.rarity} ${p.video_path}`;
+    wrap.appendChild(div);
   });
 
-  wrap.innerHTML = '';
-  wrap.appendChild(t);
+  /* ▼ シリアル一覧 */
+  const serials = await fetch('/api/admin/serials',{ headers }).then(r=>r.json());
+  const sl = $('#serial-list');
+  sl.innerHTML = '';
+  serials.forEach(s=>{
+    const row = document.createElement('div');
+    row.textContent = `${s.code} (${s.spins}) used:${s.used}`;
+    sl.appendChild(row);
+  });
 }
 
-/* ---------- Serial Issue ---------- */
-$('#btn-issue-serial').addEventListener('click', async ()=>{
-  const code = $('#serial-code').value.trim();
-  const spins = +$('#serial-spins').value || 1;
-
-  const token = await adminToken();
-  if (!token) return;
-
-  const r = await fetch('/api/admin/serials/issue',{
+/* ---------- レア保存 ---------- */
+$('#btn-save-rarity').addEventListener('click', async ()=>{
+  const res = await api('/api/admin/rarity-weights/update',{
     method:'POST',
-    headers:{
-      'Authorization':'Bearer '+token,
-      'Content-Type':'application/json'
-    },
-    body: JSON.stringify({ code, spins })
+    headers:{ 'Authorization':'Bearer '+adminToken },
+    body: JSON.stringify({
+      normal: $('#rw-normal').value,
+      common: $('#rw-common').value,
+      rare: $('#rw-rare').value,
+      superrare: $('#rw-superrare').value
+    })
   });
 
-  const d = await safeJson(r);
-  if (r.ok && d.ok){
-    $('#serial-status').innerHTML = `<span class="serial-badge">${d.code}</span> を登録（${d.spins}回）`;
-    if (!code) $('#serial-code').value = d.code;
-    loadSerials();
-  } else {
-    $('#serial-status').textContent = d.error || '失敗';
-  }
+  if (res.ok) alert('保存しました');
+  else alert('エラー');
 });
 
-/* ---------- 景品アップロード ---------- */
-document.querySelector('#form-prize').addEventListener('submit', async (e)=>{
+/* ---------- 景品登録 ---------- */
+$('#form-prize').addEventListener('submit', async e=>{
   e.preventDefault();
-
-  const token = await adminToken();
-  if (!token) return;
 
   const fd = new FormData();
   fd.append('rarity', $('#p-rarity').value);
-  const file = $('#p-video').files[0];
-  if (!file) return alert('動画を選択してください');
-  fd.append('video', file);
+  fd.append('video', $('#p-video').files[0]);
 
-  const r = await fetch('/api/admin/prizes/create',{
+  const res = await fetch('/api/admin/prizes/create',{
     method:'POST',
-    headers:{ 'Authorization':'Bearer '+token },
+    headers:{ 'Authorization':'Bearer '+adminToken },
     body: fd
-  });
+  }).then(r=>r.json());
 
-  const j = await safeJson(r);
-  alert(r.ok && j.ok ? '登録しました' : (j.error || '失敗'));
+  if (!res.ok) return alert(res.error || 'エラー');
+  alert('登録しました');
 
-  if (r.ok && j.ok){
-    $('#form-prize').reset();
-    renderPrizeList();
-  }
+  $('#p-video').value = '';
+  loadAdminData();
 });
 
-/* ---------- 景品一覧表示 ---------- */
-async function renderPrizeList(){
-  const wrap = $('#prize-list');
-  wrap.innerHTML = '読み込み中...';
+/* ---------- 特典動画登録 ---------- */
+$('#form-bonus').addEventListener('submit', async e=>{
+  e.preventDefault();
 
-  const token = sessionStorage.getItem('adminToken') || await adminToken();
-  if (!token){ wrap.innerHTML = 'ログイン必要'; return; }
+  const fd = new FormData();
+  fd.append('video', $('#bonus-video').files[0]);
 
-  const r = await fetch('/api/admin/prizes',{ headers:{'Authorization':'Bearer '+token} });
-  if (r.status === 404){
-    wrap.innerHTML = '404: /api/admin/prizes が見つかりません';
-    return;
-  }
-
-  const rows = await safeJson(r);
-  if (!Array.isArray(rows)){ wrap.innerHTML = '読み込み失敗'; return; }
-
-  const el = document.createElement('table');
-  el.className = 'table';
-  el.innerHTML = `
-    <thead><tr>
-      <th>ID</th>
-      <th>レア</th>
-      <th>動画</th>
-      <th>有効</th>
-      <th>プレビュー</th>
-      <th>操作</th>
-    </tr></thead>
-    <tbody></tbody>
-  `;
-
-  const tb = el.querySelector('tbody');
-
-  rows.forEach(r=>{
-    const tr = document.createElement('tr');
-
-    tr.innerHTML = `
-      <td>${r.id}</td>
-
-      <td>
-        <select class="raritySel">
-          ${['normal','common','rare','superrare']
-            .map(x=>`<option value="${x}" ${r.rarity===x?'selected':''}>${x}</option>`).join('')}
-        </select>
-      </td>
-
-      <td><input type="file" class="videoFile" accept="video/*"></td>
-
-      <td><input type="checkbox" class="enChk" ${r.enabled?'checked':''}></td>
-
-      <td><span class="badge">${r.video_path}</span></td>
-
-      <td class="actions">
-        <button class="secondary btn-save">保存</button>
-        <button class="secondary btn-del">削除</button>
-      </td>
-    `;
-
-    const raritySel = tr.querySelector('.raritySel');
-    const fileI = tr.querySelector('.videoFile');
-    const enChk = tr.querySelector('.enChk');
-
-    tr.querySelector('.btn-save').addEventListener('click', async ()=>{
-      const fd = new FormData();
-      fd.append('id', r.id);
-      fd.append('rarity', raritySel.value);
-      fd.append('enabled', enChk.checked ? 1 : 0);
-      if (fileI.files[0]) fd.append('video', fileI.files[0]);
-
-      const resp = await fetch('/api/admin/prizes/update',{
-        method:'POST',
-        headers:{ 'Authorization':'Bearer '+sessionStorage.getItem('adminToken') },
-        body: fd
-      });
-
-      const j = await safeJson(resp);
-      alert(resp.ok && j.ok ? '保存しました' : (j.error || '失敗'));
-      if (resp.ok && j.ok) renderPrizeList();
-    });
-
-    tr.querySelector('.btn-del').addEventListener('click', async ()=>{
-      if (!confirm('削除しますか？')) return;
-
-      const resp = await fetch('/api/admin/prizes/delete',{
-        method:'POST',
-        headers:{
-          'Authorization':'Bearer '+sessionStorage.getItem('adminToken'),
-          'Content-Type':'application/json'
-        },
-        body: JSON.stringify({ id: r.id })
-      });
-
-      const j = await safeJson(resp);
-      alert(resp.ok && j.ok ? '削除しました' : (j.error || '失敗'));
-      if (resp.ok && j.ok) renderPrizeList();
-    });
-
-    tb.appendChild(tr);
-  });
-
-  wrap.innerHTML = '';
-  wrap.appendChild(el);
-}
-
-/* ---------- レアリティ確率 読込 ---------- */
-async function loadRarityWeights(){
-  const token = sessionStorage.getItem('adminToken') || await adminToken();
-  if (!token) return;
-
-  const r = await fetch('/api/admin/rarity-weights',{
-    headers:{'Authorization':'Bearer '+token}
-  });
-
-  const j = await safeJson(r);
-  if (!j || !j.ok) return;
-
-  $('#rw-normal').value = j.data.normal;
-  $('#rw-common').value = j.data.common;
-  $('#rw-rare').value = j.data.rare;
-  $('#rw-superrare').value = j.data.superrare;
-}
-
-/* ---------- レアリティ確率 保存 ---------- */
-$('#btn-save-rarity').addEventListener('click', async ()=>{
-  const token = await adminToken();
-  if (!token) return;
-
-  const data = {
-    normal: +$('#rw-normal').value,
-    common: +$('#rw-common').value,
-    rare: +$('#rw-rare').value,
-    superrare: +$('#rw-superrare').value
-  };
-
-  const r = await fetch('/api/admin/rarity-weights/update',{
+  const res = await fetch('/api/admin/bonus-video',{
     method:'POST',
-    headers:{
-      'Authorization':'Bearer '+token,
-      'Content-Type':'application/json'
-    },
-    body: JSON.stringify(data)
-  });
+    headers:{ 'Authorization':'Bearer '+adminToken },
+    body: fd
+  }).then(r=>r.json());
 
-  const j = await safeJson(r);
-  alert(r.ok && j.ok ? '保存しました' : (j.error || '保存失敗'));
+  if (!res.ok) return alert('エラー');
+
+  alert('保存しました');
+  $('#bonus-video').value='';
+  $('#bonus-status').textContent='アップロード済み';
 });
 
-/* ---------- コレクション ---------- */
-async function loadCollection(){
-  const list = $('#collection-list');
-  list.innerHTML = '<li>読み込み中...</li>';
-
-  const rows = await api(`/api/my-collection?deviceId=${deviceId}`);
-  list.innerHTML = '';
-
-  if (!rows.length){
-    list.innerHTML = '<li>まだありません</li>';
-    return;
-  }
-
-  rows.forEach(r=>{
-    const li = document.createElement('li');
-
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    const count = (r.owned_count>1) ? ` ×${r.owned_count}` : '';
-    meta.textContent = `${r.rarity}${count} / ${r.obtained_at}`;
-
-    const v = document.createElement('video');
-    v.src = `/uploads/${r.video_path}`;
-    v.controls = true;
-
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-
-    const btn = document.createElement('button');
-    btn.className = 'secondary';
-    btn.textContent = '保存';
-
-    btn.addEventListener('click', async ()=>{
-      const url = `/download/${encodeURIComponent(r.video_path)}`;
-      window.location.href = url;
-    });
-
-    actions.appendChild(btn);
-    li.appendChild(meta);
-    li.appendChild(v);
-    li.appendChild(actions);
-    list.appendChild(li);
-  });
-}
+/* 初期 */
+loadSpins();
+updateCompleteStatus();
