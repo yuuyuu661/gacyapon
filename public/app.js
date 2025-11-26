@@ -1,263 +1,257 @@
-/* ==========================================================
-    app.js v7.3（完全修正版）
-    - 演出動画 → 効果音 → 景品動画 or サムネ
-    - 10連対応：新規は動画、重複はサムネ
-    - マイコレ4段スライド
-    - コンプリート残数 正しく表示
-    - シリアル入力 → 回数追加 動作安定化
-========================================================== */
+//------------------------------------------------------------
+//  app.js v7.7  (ガチャポンUI完全版)
+//------------------------------------------------------------
 
-let deviceId = localStorage.getItem("deviceId");
-if (!deviceId) {
-    deviceId = "dev_" + Math.random().toString(36).slice(2);
-    localStorage.setItem("deviceId", deviceId);
-}
+const deviceId = localStorage.getItem("deviceId") || crypto.randomUUID();
+localStorage.setItem("deviceId", deviceId);
 
-/* ==========================================================
-    DOM
-========================================================== */
-const spinsDisplay = document.getElementById("spinsDisplay");
-const spinButton = document.getElementById("spinButton");
-const spin10Button = document.getElementById("spin10Button");
-const completeText = document.getElementById("completeText");
-const serialInput = document.getElementById("serialInput");
-
+// DOM
+const spinsText = document.getElementById("spinsText");
+const spinBtn = document.getElementById("spinBtn");
+const spin10Btn = document.getElementById("spin10Btn");
+const effectVideo = document.getElementById("effectVideo");
+const prizeVideo = document.getElementById("prizeVideo");
+const prizeThumb = document.getElementById("prizeThumb");
 const gachaImage = document.getElementById("gachaImage");
-const videoArea = document.getElementById("videoArea");
+const resultBox = document.getElementById("resultBox");
+const completeText = document.getElementById("completeText");
 
-const rowSuper = document.getElementById("row-superrare");
-const rowRare = document.getElementById("row-rare");
-const rowCommon = document.getElementById("row-common");
-const rowNormal = document.getElementById("row-normal");
+// マイコレ
+const collectionList = document.getElementById("collectionList");
 
-/* ==========================================================
-    初期ロード
-========================================================== */
-loadSpins();
-loadMyCollection();
+// API BASE
+const API = "";
 
-/* ==========================================================
-    ▼ 回数読み込み
-========================================================== */
-async function loadSpins() {
+// レア度別効果音
+const se = {
+    superrare: new Audio("/effects/se/superrare.mp3"),
+    rare: new Audio("/effects/se/rare.mp3"),
+    common: new Audio("/effects/se/common.mp3"),
+    normal: new Audio("/effects/se/normal.mp3"),
+};
+
+//------------------------------------------------------------
+// デバイス情報ロード
+//------------------------------------------------------------
+async function loadDevice() {
     const res = await fetch(`/api/device?deviceId=${deviceId}`);
     const data = await res.json();
-    spinsDisplay.textContent = data.spins ?? 0;
+    updateSpins(data.spins);
+    loadCollection();
+}
+loadDevice();
+
+// 更新
+function updateSpins(n) {
+    spinsText.textContent = `残り回数：${n}`;
 }
 
-/* ==========================================================
-    ▼ 効果音再生
-========================================================== */
-function playSE(rarity) {
-    return new Promise(resolve => {
-        const audio = new Audio(`/effects/sound/${rarity}.mp3`);
-        audio.volume = 1.0;
-        audio.play();
-        audio.onended = () => resolve();
-    });
-}
-
-/* ==========================================================
-    ▼ 演出動画再生
-========================================================== */
-function playVideo(url) {
-    return new Promise(resolve => {
-        gachaImage.style.display = "none";
-        videoArea.innerHTML = "";
-
-        const v = document.createElement("video");
-        v.src = url;
-        v.autoplay = true;
-        v.playsInline = true;
-
-        v.onended = () => {
-            resolve();
-        };
-
-        videoArea.appendChild(v);
-    });
-}
-
-/* ==========================================================
-    ▼ サムネ（重複の場合1フレームだけ表示）
-========================================================== */
-function showThumbnail(url) {
-    return new Promise(resolve => {
-        gachaImage.style.display = "none";
-        videoArea.innerHTML = "";
-
-        const v = document.createElement("video");
-        v.src = url;
-        v.className = "thumb-video-large";
-        v.muted = true;
-
-        v.addEventListener("loadeddata", () => {
-            resolve();
-        });
-
-        videoArea.appendChild(v);
-    });
-}
-
-/* ==========================================================
-    ▼ コンプリート残数
-========================================================== */
+//------------------------------------------------------------
+// コンプリート数チェック
+//------------------------------------------------------------
 async function updateCompleteCount() {
-    const allRes = await fetch(`/api/admin/prizes`, {
-        headers: { Authorization: "" }
-    });
-    const allPrizes = await allRes.json();
+    const res = await fetch(`/api/admin/prizes`);
+    const prizes = await res.json();
 
-    const myRes = await fetch(`/api/my-collection?deviceId=${deviceId}`);
-    const myPrizes = await myRes.json();
+    const res2 = await fetch(`/api/my-collection?deviceId=${deviceId}`);
+    const col = await res2.json();
 
-    const remain = allPrizes.length - myPrizes.length;
+    const remaining = prizes.length - col.length;
 
-    if (remain <= 10) completeText.style.color = "red";
-    else completeText.style.color = "black";
-
-    completeText.textContent = `コンプリートまで残り ${remain} 種類！`;
+    if (remaining > 0) {
+        completeText.style.color = "#000";
+        completeText.innerHTML = `コンプリートまで残り <b>${remaining}</b> 種類！`;
+    } else {
+        completeText.style.color = "#FFD700";
+        completeText.innerHTML =
+            `✨✨ <b>コンプリートおめでとう！！</b> ✨✨<br>
+             ✨ 受付の人に言って特別景品を貰おう！！！ ✨`;
+    }
 }
 
-/* ==========================================================
-    ▼ マイコレ読込
-========================================================== */
-async function loadMyCollection() {
-    rowSuper.innerHTML = "";
-    rowRare.innerHTML = "";
-    rowCommon.innerHTML = "";
-    rowNormal.innerHTML = "";
-
+//------------------------------------------------------------
+// マイコレ読み込み
+//------------------------------------------------------------
+async function loadCollection() {
     const res = await fetch(`/api/my-collection?deviceId=${deviceId}`);
     const data = await res.json();
 
-    data.forEach(item => {
-        const video = document.createElement("video");
-        video.src = item.url;
-        video.className = "thumb-video";
+    collectionList.innerHTML = "";
 
-        if (item.rarity === "superrare") rowSuper.appendChild(video);
-        else if (item.rarity === "rare") rowRare.appendChild(video);
-        else if (item.rarity === "common") rowCommon.appendChild(video);
-        else rowNormal.appendChild(video);
-    });
+    for (const item of data) {
+        const wrap = document.createElement("div");
+        wrap.className = "collectionItem";
+
+        const thumb = document.createElement("img");
+        thumb.src = item.video_path;
+        thumb.className = "collectionThumb";
+
+        thumb.onclick = () => {
+            // 動画を上からオーバーレイ表示
+            openVideoPlayer(item.video_path);
+        };
+
+        wrap.appendChild(thumb);
+        collectionList.appendChild(wrap);
+    }
 
     updateCompleteCount();
 }
 
-/* ==========================================================
-    ▼ シリアルコード入力（回数追加）
-========================================================== */
-async function redeemSerial() {
-    const code = serialInput.value.trim();
-    if (!code) return alert("コードを入力してください");
+//------------------------------------------------------------
+// 動画プレイヤー（オーバーレイ）
+//------------------------------------------------------------
+function openVideoPlayer(src) {
+    const overlay = document.createElement("div");
+    overlay.className = "videoOverlay";
 
-    const res = await fetch("/api/redeem-serial", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, deviceId })
-    });
+    const video = document.createElement("video");
+    video.src = src;
+    video.controls = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.webkitPlaysInline = true;
 
-    const data = await res.json();
+    const closeBtn = document.createElement("div");
+    closeBtn.textContent = "×";
+    closeBtn.className = "closeVideoBtn";
+    closeBtn.onclick = () => overlay.remove();
 
-    if (!data.ok) {
-        alert(data.error || "エラー");
-        return;
-    }
-
-    spinsDisplay.textContent = data.spins;
-    serialInput.value = "";
+    overlay.appendChild(video);
+    overlay.appendChild(closeBtn);
+    document.body.appendChild(overlay);
 }
 
-/* ==========================================================
-    ▼ 単発ガチャ
-========================================================== */
-spinButton.addEventListener("click", async () => {
+//------------------------------------------------------------
+// ガチャ 演出開始
+//------------------------------------------------------------
+function playEffect(effectPath, rarity) {
+    return new Promise((resolve) => {
+        resultBox.style.display = "none";
+        prizeThumb.style.display = "none";
+        prizeVideo.style.display = "none";
 
-    const res = await fetch("/api/spin", {
+        // 演出表示
+        effectVideo.src = effectPath;
+        effectVideo.style.display = "block";
+        effectVideo.play();
+
+        // 1秒後に効果音
+        setTimeout(() => {
+            se[rarity].currentTime = 0;
+            se[rarity].play();
+        }, 1000);
+
+        // 演出終了で resolve
+        effectVideo.onended = () => {
+            effectVideo.style.display = "none";
+            resolve();
+        };
+    });
+}
+
+//------------------------------------------------------------
+// 景品動画 再生
+//------------------------------------------------------------
+function playPrizeVideo(videoPath) {
+    return new Promise((resolve) => {
+        prizeVideo.src = videoPath;
+        prizeVideo.style.display = "block";
+        prizeVideo.play();
+
+        prizeVideo.onended = () => {
+            prizeVideo.style.display = "none";
+            resultBox.style.display = "none";
+            resolve();
+        };
+    });
+}
+
+//------------------------------------------------------------
+// 被り：サムネ2秒表示
+//------------------------------------------------------------
+function showDuplicateThumb(videoPath) {
+    return new Promise((resolve) => {
+        prizeThumb.src = videoPath;
+        prizeThumb.style.display = "block";
+        resultBox.style.display = "block";
+
+        setTimeout(() => {
+            prizeThumb.style.display = "none";
+            resultBox.style.display = "none";
+            resolve();
+        }, 2000);
+    });
+}
+
+//------------------------------------------------------------
+// 単発 ガチャ
+//------------------------------------------------------------
+spinBtn.onclick = async () => {
+    const res = await fetch(`/api/spin`, {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ deviceId })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId }),
     });
 
     const data = await res.json();
 
     if (!data.ok) {
-        alert(data.error || "エラー");
+        alert(data.error);
         return;
     }
 
-    spinsDisplay.textContent = Number(spinsDisplay.textContent) - 1;
+    // 残り回数更新
+    loadDevice();
 
-    /* ① 演出動画 */
-    await playVideo(data.effect);
+    const { rarity, effect, prize } = data;
 
-    /* ② 効果音 */
-    await playSE(data.rarity);
+    // 演出スタート
+    await playEffect(effect, rarity);
 
-    /* ③ 重複確認 */
-    const myRes = await fetch(`/api/my-collection?deviceId=${deviceId}`);
-    const before = await myRes.json();
-    const already = before.some(x => x.video_path === data.prize.video_path);
-
-    /* ④ 景品動画 or サムネ */
-    if (already) {
-        await showThumbnail(data.prize.url);
+    if (!prize.already) {
+        // 初ゲット → 本編再生
+        await playPrizeVideo(prize.video_path);
     } else {
-        await playVideo(data.prize.url);
+        // 被り → サムネ2秒表示
+        await showDuplicateThumb(prize.video_path);
     }
 
-    gachaImage.style.display = "block";
-    loadMyCollection();
-});
+    loadCollection();
+};
 
-/* ==========================================================
-    ▼ 10連ガチャ
-========================================================== */
-spin10Button.addEventListener("click", async () => {
-    const spins = Number(spinsDisplay.textContent);
-    if (spins < 10) {
-        alert("回数が足りません！");
-        return;
-    }
-
-    const res = await fetch("/api/spin10", {
+//------------------------------------------------------------
+// 10連ガチャ
+//------------------------------------------------------------
+spin10Btn.onclick = async () => {
+    const res = await fetch(`/api/spin10`, {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ deviceId })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId }),
     });
 
     const data = await res.json();
 
     if (!data.ok) {
-        alert("エラー");
+        alert(data.error);
         return;
     }
 
-    spinsDisplay.textContent = spins - 10;
+    loadDevice();
 
-    for (const result of data.results) {
-        if (!result || result.error) continue;
+    for (const r of data.results) {
+        if (r.error) continue;
 
-        /* ① 演出 */
-        await playVideo(result.effect);
+        await playEffect(r.effect, r.rarity);
 
-        /* ② 効果音 */
-        await playSE(result.rarity);
-
-        /* ③ 所持チェック */
-        const myRes = await fetch(`/api/my-collection?deviceId=${deviceId}`);
-        const before = await myRes.json();
-        const already = before.some(item => item.video_path === result.prize.video_path);
-
-        /* ④ 本編 or サムネ */
-        if (!already) {
-            await playVideo(result.prize.url);
+        if (!r.prize.already) {
+            await playPrizeVideo(r.prize.video_path);
         } else {
-            await showThumbnail(result.prize.url);
+            await showDuplicateThumb(r.prize.video_path);
         }
     }
 
-    gachaImage.style.display = "block";
-    loadMyCollection();
-});
+    loadCollection();
+};
+
+//------------------------------------------------------------
