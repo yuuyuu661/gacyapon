@@ -1,38 +1,25 @@
 // ====================
 // 定数
 // ====================
-const API = "";
-
-// 今回は固定ユーザー扱い（v7.6仕様）
 const USER = "default_user";
 
 // DOM取得
-const spinCount = document.getElementById("spinCount");
-const spinBtn = document.getElementById("spinBtn");
-const spin10Btn = document.getElementById("spin10Btn");
+const spinsDisplay = document.getElementById("spinsDisplay");
+
+const spinBtn = document.getElementById("spinButton");
+const spin10Btn = document.getElementById("spin10Button");
 
 const serialInput = document.getElementById("serialInput");
-const addSpinBtn = document.getElementById("addSpinBtn");
 
-const resultArea = document.getElementById("resultArea");
-const effectVideo = document.getElementById("effectVideo");
-const prizeVideo = document.getElementById("prizeVideo");
-const duplicateImg = document.getElementById("duplicateImg");
+const videoArea = document.getElementById("videoArea");
 
-const collectionContainer = document.getElementById("collectionContainer");
+// マイコレ用行
+const rowSuper = document.getElementById("row-superrare");
+const rowRare = document.getElementById("row-rare");
+const rowCommon = document.getElementById("row-common");
+const rowNormal = document.getElementById("row-normal");
 
-const adminPassBtn = document.getElementById("adminPassBtn");
-const adminPassInput = document.getElementById("adminPassInput");
-const adminContent = document.getElementById("adminContent");
-
-const uploadPrizeBtn = document.getElementById("uploadPrizeBtn");
-const prizeFile = document.getElementById("prizeFile");
-const prizeRarity = document.getElementById("prizeRarity");
-const prizeList = document.getElementById("prizeList");
-
-// ====================
 // 効果音
-// ====================
 const SE = {
   superrare: new Audio("effects/audio/superrare.mp3"),
   rare: new Audio("effects/audio/rare.mp3"),
@@ -41,58 +28,64 @@ const SE = {
 };
 
 // ====================
-// 初期読み込み
+// 初期
 // ====================
 loadSpins();
 loadCollection();
-loadPrizeList();
 
 // ====================
-// 残り回数取得
+// タブ切り替え（index.html に合わせた修正版）
+// ====================
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    document.getElementById(tab).classList.add("active");
+
+    if (tab === "collection") loadCollection();
+  });
+});
+
+// ====================
+// 残り回数
 // ====================
 async function loadSpins() {
   const res = await fetch(`/api/spins?user=${USER}`);
   const data = await res.json();
-  spinCount.textContent = `残り回数：${data.spins}`;
+  spinsDisplay.textContent = data.spins;
 }
 
 // ====================
-// 回数追加（シリアル）
+// シリアル追加
 // ====================
-addSpinBtn.addEventListener("click", async () => {
+async function redeemSerial() {
   const code = serialInput.value.trim();
   if (!code) return alert("コードを入力してね");
 
-  // シリアルを登録する（v7.6仕様）
-  await fetch(`/api/addSerial`, {
+  const res = await fetch("/api/redeem-serial", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
-  });
-
-  // 使用する
-  const res = await fetch(`/api/useSerial`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user: USER, code }),
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ user: USER, code })
   });
 
   const data = await res.json();
+
   if (!res.ok) return alert(data.error);
 
   serialInput.value = "";
   loadSpins();
-});
+}
 
 // ====================
-// ガチャボタン
+// ガチャ実行
 // ====================
 spinBtn.addEventListener("click", () => spin(1));
 spin10Btn.addEventListener("click", () => spin(10));
 
-// ====================
-// ガチャ本体
-// ====================
 async function spin(times) {
   for (let i = 0; i < times; i++) {
     await spinOnce();
@@ -101,14 +94,11 @@ async function spin(times) {
   loadCollection();
 }
 
-// ====================
-// 1回ガチャ処理
-// ====================
 async function spinOnce() {
-  const res = await fetch(`/api/spin`, {
+  const res = await fetch("/api/spin", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user: USER }),
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ user: USER })
   });
 
   const data = await res.json();
@@ -117,147 +107,91 @@ async function spinOnce() {
     return;
   }
 
-  const prize = data.prize;
+  const p = data.prize;
 
-  // 表示エリア初期化
-  effectVideo.style.display = "none";
-  prizeVideo.style.display = "none";
-  duplicateImg.style.display = "none";
+  // 表示クリア
+  videoArea.innerHTML = "";
 
-  // 演出動画を再生（v7.6は rarity.mp4 のみ）
-  effectVideo.src = `effects/video/${prize.rarity}.mp4`;
-  effectVideo.style.display = "block";
-  effectVideo.play();
+  // ▼① 演出動画
+  const effect = document.createElement("video");
+  effect.src = `effects/video/${p.rarity}.mp4`;
+  effect.autoplay = true;
+  effect.className = "thumb-video-large";
+  videoArea.appendChild(effect);
 
-  // 効果音は 1秒遅らせて再生
+  // 効果音 1秒後
   setTimeout(() => {
-    SE[prize.rarity]?.play();
+    SE[p.rarity]?.play();
   }, 1000);
 
-  // 演出終了待ち
-  await new Promise(resolve => {
-    effectVideo.onended = resolve;
-  });
-  effectVideo.style.display = "none";
+  await waitForEnd(effect);
 
-  // 新規動画
-  if (!isDuplicate(prize.id)) {
-    prizeVideo.src = prize.video;
-    prizeVideo.style.display = "block";
-    prizeVideo.play();
-    await new Promise(resolve => (prizeVideo.onended = resolve));
-    prizeVideo.style.display = "none";
+  videoArea.innerHTML = "";
+
+  // ▼② 新規 → 景品動画再生
+  if (!p.duplicate) {
+    const vid = document.createElement("video");
+    vid.src = p.video;
+    vid.autoplay = true;
+    vid.controls = true;
+    vid.className = "thumb-video-large";
+    videoArea.appendChild(vid);
+
+    await waitForEnd(vid);
+    videoArea.innerHTML = "";
   }
 
-  // 被り → サムネ2秒表示
+  // ▼③ 被り → サムネ2秒
   else {
-    duplicateImg.src = prize.thumbnail;
-    duplicateImg.style.display = "block";
+    const img = document.createElement("img");
+    img.src = p.thumbnail;
+    img.className = "thumb-video-large";
+    videoArea.appendChild(img);
+
     await wait(2000);
-    duplicateImg.style.display = "none";
+    videoArea.innerHTML = "";
   }
 }
 
-// 被りチェック
-function isDuplicate(id) {
-  const imgs = document.querySelectorAll(".collection-thumb");
-  return [...imgs].some(img => img.dataset.id == id);
-}
-
-// 待機関数
 function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(r => setTimeout(r, ms));
+}
+function waitForEnd(video) {
+  return new Promise(r => video.addEventListener("ended", r));
 }
 
 // ====================
-// マイコレ読み込み
+// マイコレ表示（レア度別スライド対応版）
 // ====================
 async function loadCollection() {
   const res = await fetch(`/api/collection?user=${USER}`);
-  const data = await res.json();
+  const list = await res.json();
 
-  collectionContainer.innerHTML = "";
-  data.forEach(p => {
-    const wrap = document.createElement("div");
-    wrap.className = "collection-item";
+  // 初期化
+  rowSuper.innerHTML = "";
+  rowRare.innerHTML = "";
+  rowCommon.innerHTML = "";
+  rowNormal.innerHTML = "";
 
-    const img = document.createElement("img");
-    img.src = p.thumbnail;
-    img.dataset.id = p.id;
-    img.className = "collection-thumb";
-    img.style.cursor = "pointer";
+  list.forEach(p => {
+    const v = document.createElement("video");
+    v.src = p.video;
+    v.className = "thumb-video";
+    v.muted = true;
 
-    img.addEventListener("click", () => {
-      prizeVideo.src = p.video;
-      prizeVideo.style.display = "block";
-      prizeVideo.play();
-      prizeVideo.onended = () => {
-        prizeVideo.style.display = "none";
-      };
-    });
+    v.onclick = () => {
+      videoArea.innerHTML = "";
+      const pv = document.createElement("video");
+      pv.src = p.video;
+      pv.className = "thumb-video-large";
+      pv.autoplay = true;
+      pv.controls = true;
+      videoArea.appendChild(pv);
+    };
 
-    wrap.appendChild(img);
-    collectionContainer.appendChild(wrap);
+    if (p.rarity === "superrare") rowSuper.appendChild(v);
+    if (p.rarity === "rare") rowRare.appendChild(v);
+    if (p.rarity === "common") rowCommon.appendChild(v);
+    if (p.rarity === "normal") rowNormal.appendChild(v);
   });
 }
-
-// ====================
-// 管理パスワード
-// ====================
-adminPassBtn.addEventListener("click", () => {
-  if (adminPassInput.value === "admin123") {
-    adminContent.style.display = "block";
-  } else {
-    alert("パスワードが違います");
-  }
-});
-
-// ====================
-// 景品登録
-// ====================
-uploadPrizeBtn.addEventListener("click", async () => {
-  const file = prizeFile.files[0];
-  if (!file) return alert("動画を選んでね");
-
-  const fd = new FormData();
-  fd.append("video", file);
-  fd.append("rarity", prizeRarity.value);
-
-  const res = await fetch(`/api/admin/prizes`, {
-    method: "POST",
-    body: fd,
-  });
-
-  const data = await res.json();
-  if (!res.ok) return alert(data.error);
-
-  loadPrizeList();
-});
-
-// 景品一覧
-async function loadPrizeList() {
-  const res = await fetch(`/api/admin/prizes`);
-  const data = await res.json();
-
-  prizeList.innerHTML = "";
-  data.forEach(p => {
-    const img = document.createElement("img");
-    img.src = p.thumbnail;
-    img.className = "prize-thumb";
-    prizeList.appendChild(img);
-  });
-}
-
-// ====================
-// タブ切替（v7.6仕様）
-// ====================
-document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const tab = btn.dataset.tab;
-
-    document.querySelectorAll(".tab-page").forEach(p => (p.style.display = "none"));
-    document.getElementById(tab).style.display = "block";
-
-    if (tab === "mycollection") loadCollection();
-  });
-});
