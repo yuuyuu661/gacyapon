@@ -1,121 +1,117 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ガチャポン</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ガチャポン</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
 
-    <!-- ▼ ナビゲーション -->
-    <div class="nav">
-        <button id="tab-gacha">ガチャポン</button>
-        <button id="tab-collection">マイコレクション</button>
-        <button id="tab-admin">管理</button>
+  <!-- ---------- タブメニュー ---------- -->
+  <div class="tab-menu">
+    <button class="tab-btn" data-tab="gacha">ガチャポン</button>
+    <button class="tab-btn" data-tab="mycollection">マイコレクション</button>
+    <button class="tab-btn" data-tab="admin">管理</button>
+  </div>
+
+  <!-- ---------- ガチャタブ ---------- -->
+  <div id="gacha" class="tab-page">
+
+    <h2 class="title">ガチャポン</h2>
+
+    <div id="spinArea">
+      <span class="spin-icon">🔔</span>
+      <span id="spinCount">残り回数：0</span>
     </div>
 
-    <!-- ▼ コンテンツ切り替え -->
-    <div id="content-gacha" class="content active">
-        <h2 style="text-align:center;">ガチャポン</h2>
-
-        <div id="completeMessage" class="complete-message" style="display:none;">
-            ✨✨ コンプリートおめでとう！！ ✨✨<br>
-            ✨ 受付の人に言って特別景品を貰おう！！！ ✨
-        </div>
-
-        <div id="remainWrap" style="text-align:center; margin:10px;">
-            <span id="spinCount" style="font-size:20px; font-weight:bold;">🔔 残り回数：0</span>
-        </div>
-
-        <!-- ▼ ユーザー名追加 -->
-        <div class="name-input-wrap">
-            <input id="usernameInput" type="text" placeholder="ユーザー名">
-            <button id="addUserBtn">追加</button>
-        </div>
-
-        <h3 id="remainKinds" style="text-align:center; color:#d9534f;"></h3>
-
-        <!-- ▼ 筐体 + 上に重ねる動画 -->
-        <div class="gacha-wrapper">
-            <img src="gachapon.png" class="gacha-machine">
-            <div id="videoOverlay" class="video-overlay"></div>
-        </div>
-
-        <!-- ▼ ボタン -->
-        <div class="btn-area">
-            <button id="spinBtn">回す！</button>
-            <button id="spin10Btn">10連で回す！</button>
-        </div>
+    <!-- 回数追加 -->
+    <div class="add-spin-area">
+      <input id="serialInput" type="text" placeholder="シリアルコード">
+      <button id="addSpinBtn">追加</button>
     </div>
 
-    <!-- ▼ マイコレ -->
-    <div id="content-collection" class="content">
-        <h2 style="text-align:center;">マイコレクション</h2>
+    <div id="completeText" class="complete-text"></div>
 
-        <div id="myCollectionList" class="collection-grid"></div>
-
+    <!-- ガチャ筐体 -->
+    <div id="gachaContainer">
+      <img id="gachaImage" src="gachapon.png" class="gacha-image" />
     </div>
 
-    <!-- ▼ 管理画面 -->
-    <div id="content-admin" class="content">
-        <h2 style="text-align:center;">管理</h2>
-
-        <div class="admin-block">
-            <input id="adminPassword" type="password" placeholder="パスワード">
-            <button id="adminLoginBtn">ログイン</button>
-        </div>
-
-        <!-- ▼ 管理メニュー（ログイン後に表示） -->
-        <div id="adminMenu" style="display:none;">
-
-            <h3>🎥 景品動画の登録</h3>
-            <input id="prizeName" type="text" placeholder="景品名（任意）">
-            <input id="prizeFile" type="file" accept="video/mp4,video/mov">
-            <button id="uploadPrizeBtn">登録</button>
-
-            <h4>登録済みの景品</h4>
-            <div id="adminPrizeList" class="admin-prize-list"></div>
-
-            <hr>
-
-            <h3>🎰 レア度の設定</h3>
-
-            <div class="rarity-block">
-                <p>通常</p>
-                <input id="rate-normal" type="number" min="0" max="100">
-            </div>
-
-            <div class="rarity-block">
-                <p>レア</p>
-                <input id="rate-rare" type="number" min="0" max="100">
-            </div>
-
-            <div class="rarity-block">
-                <p>スーパーレア</p>
-                <input id="rate-super" type="number" min="0" max="100">
-            </div>
-
-            <div class="rarity-block">
-                <p>コミン</p>
-                <input id="rate-common" type="number" min="0" max="100">
-            </div>
-
-            <button id="saveRatesBtn">確率を保存</button>
-
-            <hr>
-
-            <h3>🎫 シリアル発行</h3>
-            <input id="serialWord" type="text" placeholder="好きな文字列を入れる">
-            <input id="serialAmount" type="number" value="10">
-            <button id="createSerialBtn">発行</button>
-
-            <h4>シリアル一覧</h4>
-            <div id="serialList"></div>
-        </div>
+    <!-- ★ 演出/景品動画を筐体の上に重ねる領域 -->
+    <div id="videoOverlay">
+      <video id="effectVideo" class="overlay-video" playsinline></video>
+      <video id="prizeVideo" class="overlay-video" playsinline></video>
+      <img id="duplicateThumb" class="overlay-thumb" />
     </div>
 
-    <script src="app.js"></script>
+    <!-- 回すボタン群 -->
+    <div class="gacha-btn-area">
+      <button id="spinBtn">回す！</button>
+      <button id="spin10Btn">10連で回す！</button>
+    </div>
+
+  </div>
+
+  <!-- ---------- マイコレ ---------- -->
+  <div id="mycollection" class="tab-page" style="display:none;">
+    <h2 class="title">マイコレクション（いつでも再生）</h2>
+
+    <div id="collectionContainer"></div>
+
+    <!-- 動画再生オーバーレイ -->
+    <div id="viewOverlay">
+      <video id="viewVideo" playsinline controls></video>
+      <button id="closeViewBtn">✕</button>
+    </div>
+  </div>
+
+  <!-- ---------- 管理 ---------- -->
+  <div id="admin" class="tab-page" style="display:none;">
+
+    <h2 class="title">管理</h2>
+
+    <!-- パスワード入力 -->
+    <div class="admin-pass-box">
+      <input type="password" id="adminPassInput" placeholder="パスワード">
+      <button id="adminPassBtn">OK</button>
+    </div>
+
+    <div id="adminContent" style="display:none;">
+
+      <!-- 景品動画登録 -->
+      <h3>景品登録</h3>
+      <input type="file" id="prizeFile" accept="video/*">
+      <select id="prizeRarity">
+        <option value="superrare">superrare</option>
+        <option value="rare">rare</option>
+        <option value="common">common</option>
+        <option value="normal">normal</option>
+      </select>
+      <button id="uploadPrizeBtn">登録</button>
+
+      <h3>登録済み景品</h3>
+      <div id="prizeList"></div>
+
+      <!-- レア度確率設定 -->
+      <h3>レア度確率</h3>
+      <div class="rarity-box">
+        <label>superrare：<input id="probSuper" type="number" min="0" max="100"></label> %
+      </div>
+      <div class="rarity-box">
+        <label>rare：<input id="probRare" type="number" min="0" max="100"></label> %
+      </div>
+      <div class="rarity-box">
+        <label>common：<input id="probCommon" type="number" min="0" max="100"></label> %
+      </div>
+      <div class="rarity-box">
+        <label>normal：<input id="probNormal" type="number" min="0" max="100"></label> %
+      </div>
+      <button id="saveProbabilityBtn">確率を保存</button>
+
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
