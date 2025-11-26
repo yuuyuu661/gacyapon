@@ -188,6 +188,8 @@ async function adminLogin() {
 ========================================================== */
 async function issueSerial() {
   const spins = Number(document.getElementById("serialSpins").value);
+  const custom = document.getElementById("serialCustom").value.trim();
+
   if (!spins || spins <= 0) {
     alert("回数を入力してください");
     return;
@@ -195,17 +197,23 @@ async function issueSerial() {
 
   const res = await fetch("/api/admin/serials/issue", {
     method: "POST",
-    headers: { 
+    headers: {
       "Content-Type": "application/json",
       "Authorization": "Bearer " + adminToken
     },
-    body: JSON.stringify({ spins })
+    body: JSON.stringify({ code: custom, spins })
   });
-  const data = await res.json();
 
-  alert("発行しました！ → " + data.code);
+  const data = await res.json();
+  if (!data.ok) {
+    alert(data.error || "発行エラー");
+    return;
+  }
+
+  alert(`発行しました：${data.code}`);
   loadLatestSerials();
 }
+
 
 async function loadLatestSerials() {
   const res = await fetch("/api/admin/serials/latest", {
