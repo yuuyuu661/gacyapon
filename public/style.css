@@ -1,304 +1,227 @@
-/* Base */
-:root { color-scheme: light; }
-* { box-sizing: border-box; }
-
+/* ------------------------------------
+   全体レイアウト
+------------------------------------ */
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto,
-               "Hiragino Kaku Gothic ProN", "Noto Sans JP",
-               "Yu Gothic", sans-serif;
-  background: #fff;
+  font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
   margin: 0;
+  background: #fdfdfd;
+  color: #333;
 }
 
 header {
-  background: #ffb6c1;
   padding: 10px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  background: #f8bfc6;
+  text-align: center;
+  margin-bottom: 20px;
 }
 
 h1 {
-  text-align: center;
-  margin: 0 0 8px;
-  font-size: clamp(18px, 2.6vw, 28px);
+  margin: 0;
+  font-size: 22px;
+  color: #444;
 }
 
-.topbar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+/* ------------------------------------
+   タブ
+------------------------------------ */
+#tabs {
+  margin-top: 10px;
 }
 
-nav {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-nav button {
-  margin: 0 6px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #e08aa0;
-  background: #fff;
+#tabs button {
+  padding: 8px 16px;
+  margin: 0 4px;
+  border-radius: 8px;
+  border: 1px solid #bbb;
+  background: white;
   cursor: pointer;
-  font-size: clamp(12px, 2.8vw, 16px);
+  font-size: 15px;
 }
 
-.admin-actions button {
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid #aaa;
-  background: #fff;
+#tabs button:hover {
+  background: #f0f0f0;
+}
+
+/* ------------------------------------
+   カード（管理UI）
+------------------------------------ */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  margin: 20px auto;
+  width: 90%;
+  max-width: 900px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* 見出し */
+.card h3 {
+  margin-top: 0;
+}
+
+/* ------------------------------------
+   フォーム
+------------------------------------ */
+input[type="text"],
+input[type="number"],
+select {
+  width: 100%;
+  max-width: 400px;
+  padding: 8px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #ff6f91;
+  color: white;
   cursor: pointer;
+  font-size: 14px;
 }
 
-/* Tabs */
-.tab {
-  display: none;
-  padding: 16px;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-.tab.active {
-  display: block;
+button:hover {
+  background: #ff4f76;
 }
 
-/* Gacha stage */
+/* ------------------------------------
+   ガチャポン画面
+------------------------------------ */
 .gacha-center {
-  margin-top: 16px;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  margin-top: 20px;
 }
 
 .gacha-stage {
   position: relative;
-  width: min(92vw, 520px);
-  aspect-ratio: 4 / 3;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #fafafa;
-  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  display: inline-block;
+  width: 300px;
+  height: 300px;
+  margin-bottom: 15px;
 }
 
-#gacha-illust,
+#gacha-illust {
+  width: 100%;
+}
+
+/* 演出動画・結果動画 */
 .stage-video {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-#gacha-illust { display: block; }
-.stage-video { display: block; background: #000; }
-
-.roll-btn {
-  padding: 12px 22px;
-  background: #ff3571;
-  color: #fff;
-  border: none;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 300px;
+  object-fit: cover;
   border-radius: 12px;
-  font-size: clamp(16px, 4.8vw, 20px);
+  background: black;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* サムネ（かぶり用） */
+#thumb-preview {
+  width: 300px;
+  height: 300px;
+  border-radius: 12px;
+}
+
+/* 回すボタン */
+.roll-btn {
+  display: inline-block;
+  margin: 10px;
+  padding: 10px 20px;
+  background: #ff6f91;
+  color: white;
+  border-radius: 10px;
+  font-size: 16px;
   cursor: pointer;
 }
 
-.hidden { display: none !important; }
-
-/* Inputs */
-.field-label {
-  display: block;
-  font-weight: 700;
-  margin: 12px 0 6px;
+.roll-btn:hover {
+  background: #ff507a;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr);
-  gap: 12px 18px;
-}
-
-.form-row input,
-.form-row select {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  font-size: 16px;
-}
-
-/* Serial inline */
+/* ------------------------------------
+   シリアル入力
+------------------------------------ */
 .serial-inline {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: 16px;
 }
 
 .serial-inline input {
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  min-width: 220px;
+  width: 240px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #aaa;
 }
 
-/* Collection grid */
+/* ------------------------------------
+   マイコレクション
+------------------------------------ */
 .collection {
   list-style: none;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  width: 90%;
+  margin: 10px auto;
 }
 
 .collection li {
-  border: 1px solid #eee;
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.collection .meta {
-  font-size: 12px;
-  color: #555;
-}
-
-.collection video {
-  width: 100%;
+  padding: 10px;
+  background: white;
   border-radius: 8px;
-  background: #000;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
-.collection .actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+/* ------------------------------------
+   コンプリート表示
+------------------------------------ */
+.complete-status {
+  font-size: 18px;
+  margin-bottom: 10px;
+  font-weight: bold;
 }
 
-/* Admin table */
-.card {
-  border: 1px solid #eee;
-  border-radius: 12px;
-  padding: 16px;
-  margin: 8px 0 16px;
-  background: #fff;
+/* 特典ボタン */
+.bonus-btn {
+  margin-bottom: 15px;
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
-  font-size: 14px;
-}
-
-.table th,
-.table td {
-  border: 1px solid #eee;
-  padding: 8px;
-  vertical-align: top;
-  text-align: left;
-}
-
-.table th {
-  background: #fff5f7;
-  white-space: nowrap;
-}
-
-.table select,
-.table input[type="file"] {
-  width: 100%;
-}
-
-.table input[type="checkbox"] {
-  transform: scale(1.2);
-}
-
-.badge {
-  display: inline-block;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: #f0f0f0;
-  font-size: 12px;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-button.secondary {
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-}
-
-/* Admin visibility */
-.admin-only { display: none; }
-.admin-visible .admin-only { display: inline-block; }
-
-/* Admin 2-col grid */
-.grid-2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-/* Serial status + scroll list */
-.serial-status {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #333;
-}
-
-.serial-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border: 1px dashed #aaa;
-  border-radius: 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  background: #fafafa;
-}
-
-.serial-list-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.serial-list-table th,
-.serial-list-table td {
-  border: 1px solid #eee;
-  padding: 6px;
-  font-size: 13px;
-}
-
-.serial-list-table th {
-  background: #fff5f7;
-}
-
+/* ------------------------------------
+   管理画面 各種スクロール
+------------------------------------ */
 .scroll-rows {
-  max-height: 180px;
-  overflow: auto;
-  border: 1px solid #eee;
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #fafafa;
   border-radius: 8px;
-  padding: 6px;
-  background: #fff;
+  border: 1px solid #ddd;
+  margin-top: 10px;
 }
 
-/* Mobile tweaks */
-@media (max-width: 480px) {
-  .gacha-stage { width: 94vw; }
-  .serial-inline input { min-width: 60vw; }
+/* ------------------------------------
+   グリッド（シリアル発行エリア）
+------------------------------------ */
+.form-grid input {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.form-grid button {
+  margin-top: 8px;
+}
+
+/* ------------------------------------
+   動画プレイヤー
+------------------------------------ */
+video {
+  outline: none;
+  border-radius: 10px;
 }
