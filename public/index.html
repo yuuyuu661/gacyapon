@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ガチャポン</title>
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header>
-    🎁 ガチャポン
-</header>
+<header>🎁 ガチャポン</header>
 
 <!-- ▼ タブ -->
 <div class="tab-buttons">
@@ -21,7 +18,7 @@
 </div>
 
 <!-- =====================================================
-    ▼ ガチャポン画面
+    ▼ ガチャ画面
 ===================================================== -->
 <div id="gacha" class="tab-content active">
 
@@ -30,23 +27,23 @@
     <p>🔔 残り回数：<span id="spinsDisplay">0</span></p>
 
     <div class="serial-box">
-        <input id="serialInput" placeholder="シリアルコードを入力" />
-        <button id="serialAddBtn">追加</button>
+        <input id="serialInput" placeholder="シリアルコードを入力">
+        <button id="addSpinBtn">追加</button>
     </div>
 
     <p id="completeText" class="complete-text">コンプリートまで残り 0 種類！</p>
 
     <div class="gacha-area">
-        <img id="gachaImage" class="gacha-img" src="gachapon.png" />
-        
-        <!-- ★ ガチャ演出（UI非表示） -->
-        <video id="effectVideo" style="display:none;" muted></video>
-        <video id="prizeVideo" style="display:none;" muted controls></video>
+        <img id="gachaImage" class="gacha-img" src="gachapon.png">
+
+        <!-- 演出動画と景品動画 -->
+        <video id="effectVideo" class="effect-video" style="display:none;" playsinline></video>
+        <video id="prizeVideo" class="prize-video" style="display:none;" playsinline controls></video>
     </div>
 
     <div class="spin-buttons">
-        <button id="spinButton" class="spin-btn">回す！</button>
-        <button id="spin10Button" class="spin-btn pink">10連で回す！</button>
+        <button id="spinBtn" class="spin-btn">回す！</button>
+        <button id="spin10Btn" class="spin-btn pink">10連で回す！</button>
     </div>
 
 </div>
@@ -78,8 +75,8 @@
         <h3 class="rarity-title normal-title">NORMAL</h3>
         <div id="row-normal" class="rarity-row"></div>
     </div>
-
 </div>
+
 
 
 <!-- =====================================================
@@ -90,25 +87,41 @@
     <h2>管理メニュー</h2>
 
     <div class="admin-auth">
-        <input id="adminPass" type="password" placeholder="管理者パスワード" />
+        <input id="adminPass" type="password" placeholder="管理者パスワード">
         <button id="adminLoginBtn">ログイン</button>
     </div>
 
     <div id="adminPanel" style="display:none;">
 
-        <!-- ★ レア度確率 -->
+        <!-- 🔑 シリアル発行を上へ -->
+        <section class="admin-section">
+            <h3>🔑 シリアルコード発行</h3>
+
+            <input id="serialWord" placeholder="文字列（例：yuu2025）">
+            <input id="serialSpins" type="number" min="1" placeholder="付与回数">
+
+            <button id="issueSerialBtn">発行</button>
+
+            <h4>直近の発行履歴</h4>
+            <div id="serialLog" class="serial-log"></div>
+        </section>
+
+
+        <!-- 🎲 レア度確率 -->
         <section class="admin-section">
             <h3>🎲 レア度確率設定</h3>
             <div class="rate-box">
-                <label>superrare (%)：<input id="rateSuper" type="number"></label>
-                <label>rare (%)：<input id="rateRare" type="number"></label>
-                <label>common (%)：<input id="rateCommon" type="number"></label>
-                <label>normal (%)：<input id="rateNormal" type="number"></label>
+                <label>superrare (%)：<input id="rateSuper" type="number" min="0"></label>
+                <label>rare (%)：<input id="rateRare" type="number" min="0"></label>
+                <label>common (%)：<input id="rateCommon" type="number" min="0"></label>
+                <label>normal (%)：<input id="rateNormal" type="number" min="0"></label>
             </div>
             <button id="saveRateBtn">保存</button>
         </section>
 
-        <!-- ★ 景品登録 -->
+
+
+        <!-- 📦 景品登録 -->
         <section class="admin-section">
             <h3>📦 景品動画の登録</h3>
 
@@ -123,43 +136,21 @@
             <button id="addPrizeBtn">登録</button>
 
             <h4>登録済み景品</h4>
-            <div id="prizeList" class="prize-list"></div>
-        </section>
 
-        <!-- ★ シリアル発行 -->
-        <section class="admin-section">
-            <h3>🔑 シリアルコード発行</h3>
+            <!-- レア度ごとに横スクロール -->
+            <div class="prize-row" id="prizeRow-superrare"></div>
+            <div class="prize-row" id="prizeRow-rare"></div>
+            <div class="prize-row" id="prizeRow-common"></div>
+            <div class="prize-row" id="prizeRow-normal"></div>
 
-            <input id="serialWord" placeholder="任意の文字列">
-            <input id="serialSpins" type="number" min="1" placeholder="付与回数">
-            <button id="issueSerialBtn">発行</button>
-
-            <h4>直近履歴</h4>
-            <div id="serialLog" class="serial-log"></div>
         </section>
 
     </div>
+
 </div>
 
+
 <script src="app.js"></script>
-
-<script>
-// タブ切り替え（UIそのまま）
-const tabs = document.querySelectorAll(".tab-btn");
-const contents = document.querySelectorAll(".tab-content");
-
-tabs.forEach(btn => {
-    btn.addEventListener("click", () => {
-        tabs.forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-
-        contents.forEach(c => c.classList.remove("active"));
-        document.getElementById(btn.dataset.tab).classList.add("active");
-
-        if (btn.dataset.tab === "collection") loadMyCollection();
-    });
-});
-</script>
 
 </body>
 </html>
