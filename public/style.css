@@ -286,3 +286,9 @@ button {
         width: 140px;
     }
 }
+
+#spinsDisplay,
+#spinsDisplayText,
+.remaining-box {
+    text-align: center;
+}
