@@ -156,14 +156,28 @@ app.post("/api/admin/login", (req, res) => {
     ▼ シリアル発行（v7.1）
 ========================================================== */
 app.post("/api/admin/serials/issue", auth, (req, res) => {
-  const spins = Number(req.body.spins);
-  if (!spins || spins <= 0) return res.status(400).json({ error: "spins required" });
+  let { code, spins } = req.body;
 
-  const code = Math.random().toString(36).slice(2, 10).toUpperCase();
+  spins = Number(spins);
+  if (!spins || spins <= 0)
+    return res.status(400).json({ error: "spins required" });
 
-  db.prepare(`INSERT INTO serials(code, spins, used) VALUES (?, ?, 0)`).run(code, spins);
+  // 自分で指定しなければランダム生成
+  if (!code || code.trim() === "") {
+    code = Math.random().toString(36).slice(2, 10).toUpperCase();
+  }
 
-  res.json({ ok: true, code });
+  // 同じコードは再利用OK（前のを上書きしない）
+  try {
+    db.prepare(`
+      INSERT INTO serials(code, spins, used)
+      VALUES (?, ?, 0)
+    `).run(code, spins);
+
+    return res.json({ ok: true, code });
+  } catch {
+    return res.status(400).json({ error: "このコードは既に存在します" });
+  }
 });
 
 /* 直近5件を返す */
