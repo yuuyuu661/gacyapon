@@ -1,10 +1,5 @@
 /* ==========================================================
-    ガチャポン v7.1
-    - レア度演出動画 → 景品動画 再生
-    - 10連（新規：演出→景品 / 重複：演出→サムネ）
-    - シリアル発行機能（5件スクロール）
-    - マイコレ4段（superrare / rare / common / normal）
-    - 景品登録（動画 & レア度のみ）
+    server.js v7.3（完全修正版）
 ========================================================== */
 
 import 'dotenv/config';
@@ -36,12 +31,12 @@ const JWT_SECRET = process.env.JWT_SECRET || "secret";
 const db = new Database(path.join(__dirname, "data.sqlite"));
 db.pragma("journal_mode = WAL");
 
-/* ---- DB テーブル ---- */
 db.exec(`
 CREATE TABLE IF NOT EXISTS rarity_rates(
   rarity TEXT PRIMARY KEY,
   rate INTEGER
 );
+
 INSERT OR IGNORE INTO rarity_rates(rarity, rate) VALUES
 ('superrare', 2),
 ('rare', 20),
@@ -77,31 +72,33 @@ CREATE TABLE IF NOT EXISTS collections(
 `);
 
 /* ==========================================================
-    アップロード設定（動画）
+    アップロード設定
 ========================================================== */
-const effectsDir = path.join(__dirname, "public/effects");
 const uploadsDir = path.join(__dirname, "public/uploads");
+const effectsDir = path.join(__dirname, "public/effects");
 
-[effectsDir, uploadsDir].forEach(d => {
+[uploadsDir, effectsDir].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 
 const storage = multer.diskStorage({
   destination: (_, __, cb) => cb(null, uploadsDir),
-  filename: (_, file, cb) =>
-    cb(null, "p_" + Date.now() + "_" + Math.random().toString(36).slice(2) + "." + file.originalname.split(".").pop())
+  filename: (_, file, cb) => {
+    const ext = file.originalname.split(".").pop();
+    cb(null, "p_" + Date.now() + "_" + Math.random().toString(36).slice(2) + "." + ext);
+  }
 });
 const upload = multer({ storage });
 
 /* ==========================================================
-    静的ファイル
+    静的公開
 ========================================================== */
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(uploadsDir));
 app.use("/effects", express.static(effectsDir));
 
 /* ==========================================================
-    共通ユーティリティ
+    認証
 ========================================================== */
 function signToken(data) {
   return jwt.sign(data, JWT_SECRET, { expiresIn: "2h" });
@@ -118,24 +115,37 @@ function auth(req, res, next) {
   }
 }
 
-/* ----------------------------------------------------------
-    レア度抽選
------------------------------------------------------------ */
+/* ==========================================================
+    ▼ レア度確率
+========================================================== */
+app.get("/api/admin/rarity-rates", auth, (_, res) => {
+  res.json(db.prepare("SELECT * FROM rarity_rates").all());
+});
+
+app.post("/api/admin/rarity-rates", auth, (req, res) => {
+  const rates = req.body;
+  for (const r of rates) {
+    db.prepare("UPDATE rarity_rates SET rate=? WHERE rarity=?")
+      .run(r.rate, r.rarity);
+  }
+  res.json({ ok: true });
+});
+
+/* ==========================================================
+    ガチャ抽選
+========================================================== */
 function pickRarity() {
-  const rates = db.prepare("SELECT * FROM rarity_rates").all();
-  const total = rates.reduce((a, b) => a + b.rate, 0);
+  const rows = db.prepare("SELECT * FROM rarity_rates").all();
+  const total = rows.reduce((a, b) => a + b.rate, 0);
 
   let r = Math.random() * total;
-  for (const row of rates) {
+  for (const row of rows) {
     r -= row.rate;
     if (r <= 0) return row.rarity;
   }
   return "normal";
 }
 
-/* ----------------------------------------------------------
-    レア度ごとの景品からランダムで選ぶ
------------------------------------------------------------ */
 function pickPrize(rarity) {
   const list = db.prepare("SELECT * FROM prizes WHERE rarity=? AND enabled=1").all(rarity);
   if (list.length === 0) return null;
@@ -153,7 +163,7 @@ app.post("/api/admin/login", (req, res) => {
 });
 
 /* ==========================================================
-    ▼ シリアル発行（v7.1）
+    ▼ シリアル発行
 ========================================================== */
 app.post("/api/admin/serials/issue", auth, (req, res) => {
   let { code, spins } = req.body;
@@ -162,27 +172,30 @@ app.post("/api/admin/serials/issue", auth, (req, res) => {
   if (!spins || spins <= 0)
     return res.status(400).json({ error: "spins required" });
 
-  // 自分で指定しなければランダム生成
   if (!code || code.trim() === "") {
     code = Math.random().toString(36).slice(2, 10).toUpperCase();
   }
 
-  // 同じコードは再利用OK（前のを上書きしない）
   try {
     db.prepare(`
       INSERT INTO serials(code, spins, used)
       VALUES (?, ?, 0)
     `).run(code, spins);
-
-    return res.json({ ok: true, code });
   } catch {
-    return res.status(400).json({ error: "このコードは既に存在します" });
+    return res.status(400).json({ error: "already exists" });
   }
+
+  res.json({ ok: true, code });
 });
 
-/* 直近5件を返す */
+/* 最新5件（使用済み情報込み） */
 app.get("/api/admin/serials/latest", auth, (_, res) => {
-  const list = db.prepare("SELECT * FROM serials ORDER BY rowid DESC LIMIT 5").all();
+  const list = db.prepare(`
+    SELECT code, spins, used, used_by_device, used_at
+    FROM serials
+    ORDER BY rowid DESC
+    LIMIT 5
+  `).all();
   res.json(list);
 });
 
@@ -192,16 +205,22 @@ app.get("/api/admin/serials/latest", auth, (_, res) => {
 app.post("/api/admin/prizes/create", auth, upload.single("video"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "video required" });
 
-  db.prepare("INSERT INTO prizes(video_path, rarity, enabled) VALUES (?, ?, 1)")
-    .run(req.file.filename, req.body.rarity);
+  db.prepare(`
+    INSERT INTO prizes(video_path, rarity, enabled)
+    VALUES (?, ?, 1)
+  `).run(req.file.filename, req.body.rarity);
 
   res.json({ ok: true });
 });
 
-/* 景品一覧 */
+/* 景品一覧（サムネ用URL付き） */
 app.get("/api/admin/prizes", auth, (_, res) => {
-  const list = db.prepare(`
-    SELECT *
+  const rows = db.prepare(`
+    SELECT
+      id,
+      video_path,
+      rarity,
+      '/uploads/' || video_path AS video_url
     FROM prizes
     ORDER BY
       CASE rarity
@@ -209,9 +228,11 @@ app.get("/api/admin/prizes", auth, (_, res) => {
         WHEN 'rare' THEN 2
         WHEN 'common' THEN 3
         WHEN 'normal' THEN 4
-      END, id DESC
+      END,
+      id DESC
   `).all();
-  res.json(list);
+
+  res.json(rows);
 });
 
 /* 景品削除 */
@@ -221,28 +242,31 @@ app.post("/api/admin/prizes/delete", auth, (req, res) => {
 });
 
 /* ==========================================================
-    ▼ 回数読み込み & シリアル利用
+    ▼ 回数読込 / シリアル利用
 ========================================================== */
 app.get("/api/device", (req, res) => {
   const id = req.query.deviceId;
-  if (!id) return res.status(400).json({ error: "deviceId required" });
+  db.prepare("INSERT OR IGNORE INTO devices(device_id, spins) VALUES (?, 0)")
+    .run(id);
 
-  db.prepare("INSERT OR IGNORE INTO devices(device_id, spins) VALUES (?, 0)").run(id);
-  const row = db.prepare("SELECT spins FROM devices WHERE device_id=?").get(id);
+  const row = db.prepare("SELECT spins FROM devices WHERE device_id=?")
+    .get(id);
 
-  res.json({ spins: row?.spins ?? 0 });
+  res.json({ spins: row.spins });
 });
 
 app.post("/api/redeem-serial", (req, res) => {
   const { code, deviceId } = req.body;
-  if (!code || !deviceId) return res.status(400).json({ error: "code & deviceId required" });
 
   const s = db.prepare("SELECT * FROM serials WHERE code=?").get(code);
-  if (!s) return res.status(404).json({ error: "invalid code" });
-  if (s.used) return res.status(409).json({ error: "already used" });
+  if (!s) return res.status(404).json({ error: "invalid" });
+  if (s.used) return res.status(409).json({ error: "used" });
 
-  db.prepare("UPDATE serials SET used=1, used_by_device=?, used_at=datetime('now') WHERE code=?")
-    .run(deviceId, code);
+  db.prepare(`
+    UPDATE serials
+    SET used=1, used_by_device=?, used_at=datetime('now')
+    WHERE code=?
+  `).run(deviceId, code);
 
   db.prepare("UPDATE devices SET spins = spins + ? WHERE device_id=?")
     .run(s.spins, deviceId);
@@ -252,23 +276,27 @@ app.post("/api/redeem-serial", (req, res) => {
 });
 
 /* ==========================================================
-    ▼ 単発ガチャ（演出 → 景品）
+    ▼ 単発ガチャ
 ========================================================== */
 app.post("/api/spin", (req, res) => {
   const id = req.body.deviceId;
-  if (!id) return res.status(400).json({ error: "deviceId required" });
+  const dev = db.prepare("SELECT spins FROM devices WHERE device_id=?").get(id);
 
-  const dev = db.prepare("SELECT * FROM devices WHERE device_id=?").get(id);
   if (!dev || dev.spins <= 0)
     return res.status(402).json({ error: "no spins" });
 
-  db.prepare("UPDATE devices SET spins=spins-1 WHERE device_id=?").run(id);
+  db.prepare("UPDATE devices SET spins = spins - 1 WHERE device_id=?").run(id);
 
   const rarity = pickRarity();
   const prize = pickPrize(rarity);
-  if (!prize) return res.status(500).json({ error: "no prize" });
 
-  db.prepare("INSERT OR IGNORE INTO collections(device_id, prize_id) VALUES (?, ?)").run(id, prize.id);
+  if (!prize)
+    return res.status(500).json({ error: "no prize" });
+
+  db.prepare(`
+    INSERT OR IGNORE INTO collections(device_id, prize_id)
+    VALUES (?, ?)
+  `).run(id, prize.id);
 
   res.json({
     ok: true,
@@ -287,18 +315,19 @@ app.post("/api/spin", (req, res) => {
 ========================================================== */
 app.post("/api/spin10", (req, res) => {
   const id = req.body.deviceId;
+  const dev = db.prepare("SELECT spins FROM devices WHERE device_id=?").get(id);
 
-  const dev = db.prepare("SELECT * FROM devices WHERE device_id=?").get(id);
   if (!dev || dev.spins < 10)
-    return res.status(402).json({ error: "not enough spins" });
+    return res.status(402).json({ error: "no spins" });
 
-  db.prepare("UPDATE devices SET spins=spins-10 WHERE device_id=?").run(id);
+  db.prepare("UPDATE devices SET spins = spins - 10 WHERE device_id=?").run(id);
 
   const results = [];
 
   for (let i = 0; i < 10; i++) {
     const rarity = pickRarity();
     const prize = pickPrize(rarity);
+
     if (!prize) {
       results.push({ error: true });
       continue;
@@ -308,8 +337,10 @@ app.post("/api/spin10", (req, res) => {
       SELECT * FROM collections WHERE device_id=? AND prize_id=?
     `).get(id, prize.id);
 
-    db.prepare("INSERT OR IGNORE INTO collections(device_id, prize_id) VALUES (?, ?)")
-      .run(id, prize.id);
+    db.prepare(`
+      INSERT OR IGNORE INTO collections(device_id, prize_id)
+      VALUES (?, ?)
+    `).run(id, prize.id);
 
     results.push({
       rarity,
@@ -327,33 +358,35 @@ app.post("/api/spin10", (req, res) => {
 });
 
 /* ==========================================================
-    ▼ マイコレクション（レア度順）
+    ▼ マイコレ一覧
 ========================================================== */
 app.get("/api/my-collection", (req, res) => {
   const id = req.query.deviceId;
 
   const rows = db.prepare(`
-    SELECT p.video_path, p.rarity, MAX(c.obtained_at) AS obtained_at
+    SELECT
+      p.video_path,
+      p.rarity,
+      '/uploads/' || p.video_path AS url
     FROM collections c
     JOIN prizes p ON p.id = c.prize_id
-    WHERE device_id=?
-    GROUP BY prize_id
-    ORDER BY obtained_at DESC
+    WHERE c.device_id=?
+    ORDER BY c.obtained_at DESC
   `).all(id);
 
   res.json(rows);
 });
 
 /* ==========================================================
-    その他
+    フロント配信
 ========================================================== */
-app.get("*", (_, res) =>
-  res.sendFile(path.join(__dirname, "public/index.html"))
-);
+app.get("*", (_, res) => {
+  res.sendFile(path.join(__dirname, "public/index.html"));
+});
 
 /* ==========================================================
     起動
 ========================================================== */
 app.listen(PORT, () => {
-  console.log("Gachapon v7.1 running on PORT", PORT);
+  console.log("Gachapon v7.3 running on", PORT);
 });
