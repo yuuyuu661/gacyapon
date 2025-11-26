@@ -1,8 +1,8 @@
 //------------------------------------------------------------
-//  app.js v7.6（UI変更なし / 完全安定）
+//  app.js v7.6（UI変更なし / index.html 完全準拠版）
 //------------------------------------------------------------
 
-// 端末IDの永続生成
+// 端末ID 永続保存
 function getDeviceId() {
     let id = localStorage.getItem("deviceId");
     if (!id) {
@@ -13,65 +13,77 @@ function getDeviceId() {
 }
 const deviceId = getDeviceId();
 
-// API 基本URL
+// API
 const API = "";
 
-// DOM
-const spinBtn = document.getElementById("spin-btn");
-const spin10Btn = document.getElementById("spin10-btn");
-const addSpinBtn = document.getElementById("add-spin-btn");
-const serialInput = document.getElementById("serial-input");
-const spinsDisplay = document.getElementById("spins-display");
+//------------------------------------------------------------
+// DOM取得（index.html に完全一致）
+//------------------------------------------------------------
+
+// ガチャ
+const spinButton     = document.getElementById("spinButton");
+const spin10Button   = document.getElementById("spin10Button");
+const spinsDisplay   = document.getElementById("spinsDisplay");
+
+// シリアル → 回数追加
+const serialInput    = document.getElementById("serialInput");
+const addSerialBtn   = document.querySelector(".serial-box button"); // ← UIは変えない
 
 // 管理ログイン
-const adminLoginBtn = document.getElementById("admin-login-btn");
-const adminPasswordInput = document.getElementById("admin-password");
+const adminLoginBtn  = document.getElementById("adminLoginBtn");
+const adminPass      = document.getElementById("adminPass");
 
 // 景品登録
-const prizeFileInput = document.getElementById("prize-file");
-const prizeRaritySelect = document.getElementById("prize-rarity");
-const prizeUploadBtn = document.getElementById("prize-upload-btn");
+const prizeFile      = document.getElementById("prizeFile");
+const prizeRarity    = document.getElementById("prizeRarity");
+const addPrizeBtn    = document.getElementById("addPrizeBtn");
+const prizeList      = document.getElementById("prizeList");
+
+// シリアル発行
+const serialWord     = document.getElementById("serialWord");
+const serialSpins    = document.getElementById("serialSpins");
+const issueSerialBtn = document.getElementById("issueSerialBtn");
+const serialLog      = document.getElementById("serialLog");
 
 // マイコレ
-const myCollectionContainer = document.getElementById("my-collection");
+const rowSuper   = document.getElementById("row-superrare");
+const rowRare    = document.getElementById("row-rare");
+const rowCommon  = document.getElementById("row-common");
+const rowNormal  = document.getElementById("row-normal");
 
 
 //------------------------------------------------------------
-// 残り回数読み込み
+// ▼ デバイスの残り回数を読む
 //------------------------------------------------------------
 async function loadDevice() {
-    const res = await fetch(`${API}/api/device?deviceId=${deviceId}`);
-    const json = await res.json();
-    spinsDisplay.textContent = json.spins ?? 0;
+    const res = await fetch(`/api/device?deviceId=${deviceId}`);
+    const data = await res.json();
+    spinsDisplay.textContent = data.spins;
 }
-
 loadDevice();
 
 
 //------------------------------------------------------------
-// ▼ シリアル使用 → 回数追加
+// ▼ シリアル → 回数追加
 //------------------------------------------------------------
-addSpinBtn.addEventListener("click", async () => {
+addSerialBtn.addEventListener("click", async () => {
     const code = serialInput.value.trim();
-    if (!code) {
-        alert("シリアル番号を入力してください");
-        return;
-    }
+    if (!code) return alert("シリアルコードを入力してください");
 
-    const res = await fetch(`${API}/api/redeem-serial`, {
+    const res = await fetch(`/api/redeem-serial`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, deviceId })
     });
 
-    const json = await res.json();
+    const data = await res.json();
 
-    if (!json.ok) {
-        alert(json.error || "使用できません");
+    if (!data.ok) {
+        alert(data.error || "使用できません");
         return;
     }
 
-    spinsDisplay.textContent = json.spins;
+    spinsDisplay.textContent = data.spins;
     serialInput.value = "";
     alert("回数が追加されました！");
 });
@@ -80,8 +92,8 @@ addSpinBtn.addEventListener("click", async () => {
 //------------------------------------------------------------
 // ▼ 単発ガチャ
 //------------------------------------------------------------
-spinBtn.addEventListener("click", async () => {
-    const res = await fetch(`${API}/api/spin`, {
+spinButton.addEventListener("click", async () => {
+    const res = await fetch(`/api/spin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deviceId })
@@ -90,11 +102,13 @@ spinBtn.addEventListener("click", async () => {
     const json = await res.json();
 
     if (!json.ok) {
-        alert(json.error || "エラー");
+        alert(json.error || "エラーが発生");
         return;
     }
 
     spinsDisplay.textContent = json.spins;
+
+    // ガチャ演出
     playGachaAnimation(json);
 });
 
@@ -102,16 +116,15 @@ spinBtn.addEventListener("click", async () => {
 //------------------------------------------------------------
 // ▼ 10連ガチャ
 //------------------------------------------------------------
-spin10Btn.addEventListener("click", async () => {
+spin10Button.addEventListener("click", async () => {
     const current = Number(spinsDisplay.textContent);
 
-    // 何回もエラー出ないように
     if (current < 10) {
         alert("回数が足りません");
         return;
     }
 
-    const res = await fetch(`${API}/api/spin10`, {
+    const res = await fetch(`/api/spin10`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deviceId })
@@ -125,32 +138,34 @@ spin10Btn.addEventListener("click", async () => {
     }
 
     spinsDisplay.textContent = json.spins;
-
-    // 10連の演出処理（ここは後で拡張）
     alert("10連完了！");
 });
 
 
 //------------------------------------------------------------
-// ▼ ガチャ演出 ＋ 当たり動画再生
+// ▼ ガチャ演出 ＋ 景品動画再生
 //------------------------------------------------------------
 function playGachaAnimation(result) {
-    const effectVideo = document.getElementById("effect-video");
-    const prizeVideo = document.getElementById("prize-video");
+    // index.html の videoArea を使う
+    const videoArea = document.getElementById("videoArea");
 
-    // 演出を再生
+    videoArea.innerHTML = `
+        <video id="effectVideo" class="effect-video" autoplay></video>
+        <video id="prizeVideo" class="prize-video"></video>
+    `;
+
+    const effectVideo = document.getElementById("effectVideo");
+    const prizeVideo  = document.getElementById("prizeVideo");
+
+    // 演出動画
     effectVideo.src = result.effect;
-    effectVideo.style.display = "block";
-    prizeVideo.style.display = "none";
 
-    effectVideo.play();
-
-    // 演出終了後に景品動画へ
+    // 演出終了後 → 景品動画
     effectVideo.onended = () => {
-        effectVideo.style.display = "none";
         prizeVideo.src = result.prize.video_path;
         prizeVideo.style.display = "block";
         prizeVideo.play();
+        effectVideo.remove();
     };
 }
 
@@ -159,43 +174,98 @@ function playGachaAnimation(result) {
 // ▼ 管理ログイン
 //------------------------------------------------------------
 adminLoginBtn.addEventListener("click", async () => {
-    const password = adminPasswordInput.value;
-    if (!password) return;
+    const password = adminPass.value;
 
-    const res = await fetch(`${API}/api/admin/login`, {
+    const res = await fetch(`/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password })
     });
 
     const json = await res.json();
-
     if (!json.ok) {
         alert("パスワードが違います");
         return;
     }
 
-    document.getElementById("admin-panel").style.display = "block";
+    document.getElementById("adminPanel").style.display = "block";
+
+    loadAdminRates();
+    loadPrizeList();
+    loadSerialLogs();
 });
 
 
 //------------------------------------------------------------
-// ▼ 景品アップロード
+// ▼ レア度確率読み込み
 //------------------------------------------------------------
-prizeUploadBtn.addEventListener("click", async () => {
-    const file = prizeFileInput.files[0];
-    const rarity = prizeRaritySelect.value;
+async function loadAdminRates() {
+    const res = await fetch(`/api/admin/rates`);
+    const rate = await res.json();
 
-    if (!file || !rarity) {
-        alert("ファイルまたはレア度が不足しています");
-        return;
-    }
+    document.getElementById("rateSuper").value  = rate.superrare;
+    document.getElementById("rateRare").value   = rate.rare;
+    document.getElementById("rateCommon").value = rate.common;
+    document.getElementById("rateNormal").value = rate.normal;
+}
+
+
+//------------------------------------------------------------
+// ▼ レア度確率 保存
+//------------------------------------------------------------
+document.getElementById("saveRateBtn").addEventListener("click", async () => {
+    const body = {
+        superrare: Number(document.getElementById("rateSuper").value),
+        rare:      Number(document.getElementById("rateRare").value),
+        common:    Number(document.getElementById("rateCommon").value),
+        normal:    Number(document.getElementById("rateNormal").value)
+    };
+
+    await fetch(`/api/admin/rates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+
+    alert("保存しました！");
+});
+
+
+//------------------------------------------------------------
+// ▼ 景品一覧
+//------------------------------------------------------------
+async function loadPrizeList() {
+    const res = await fetch(`/api/admin/prizes`);
+    const list = await res.json();
+
+    prizeList.innerHTML = "";
+
+    list.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "prize-card";
+        card.innerHTML = `
+            <video src="${p.video_path}" muted></video>
+            <p>${p.rarity}</p>
+        `;
+        prizeList.appendChild(card);
+    });
+}
+
+
+//------------------------------------------------------------
+// ▼ 景品 登録
+//------------------------------------------------------------
+addPrizeBtn.addEventListener("click", async () => {
+    const file = prizeFile.files[0];
+    const rarity = prizeRarity.value;
+
+    if (!file) return alert("動画を選択してください");
 
     const fd = new FormData();
     fd.append("file", file);
     fd.append("rarity", rarity);
 
-    const res = await fetch(`${API}/api/admin/prizes`, {
+    const res = await fetch(`/api/admin/prizes`, {
         method: "POST",
         body: fd
     });
@@ -203,54 +273,81 @@ prizeUploadBtn.addEventListener("click", async () => {
     const json = await res.json();
 
     if (!json.ok) {
-        alert(json.error);
+        alert("登録に失敗しました");
         return;
     }
 
-    prizeFileInput.value = "";
-    alert("景品を登録しました！");
-    loadPrizes();
+    alert("登録しました");
+    loadPrizeList();
 });
 
 
-
 //------------------------------------------------------------
-// ▼ 景品一覧
+// ▼ シリアル発行履歴
 //------------------------------------------------------------
-async function loadPrizes() {
-    const res = await fetch(`${API}/api/admin/prizes`);
+async function loadSerialLogs() {
+    const res = await fetch(`/api/admin/serials`);
     const list = await res.json();
 
-    const area = document.getElementById("prize-list");
-    area.innerHTML = "";
+    serialLog.innerHTML = "";
 
-    list.forEach(p => {
-        const div = document.createElement("div");
-        div.className = "prize-item";
-        div.innerHTML = `
-            <p>[${p.rarity}]</p>
-            <video src="${p.video_path}" width="120"></video>
-        `;
-        area.appendChild(div);
+    list.forEach(s => {
+        const row = document.createElement("div");
+        row.textContent = `${s.code} / ${s.spins}回 / ${
+            s.used ? "使用済" : "未使用"
+        }${s.usedAt ? " / " + s.usedAt : ""}`;
+        serialLog.appendChild(row);
     });
 }
+
+
+//------------------------------------------------------------
+// ▼ シリアル発行
+//------------------------------------------------------------
+issueSerialBtn.addEventListener("click", async () => {
+    const code  = serialWord.value.trim();
+    const spins = Number(serialSpins.value);
+
+    if (!code || !spins) return alert("入力が不足しています");
+
+    const res = await fetch(`/api/admin/serials/issue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, spins })
+    });
+
+    const json = await res.json();
+
+    if (!json.ok) return alert("発行に失敗しました");
+
+    alert("発行しました！");
+    loadSerialLogs();
+});
 
 
 //------------------------------------------------------------
 // ▼ マイコレ読み込み
 //------------------------------------------------------------
 async function loadMyCollection() {
-    const res = await fetch(`${API}/api/my-collection?deviceId=${deviceId}`);
+    const res = await fetch(`/api/my-collection?deviceId=${deviceId}`);
     const list = await res.json();
 
-    myCollectionContainer.innerHTML = "";
+    // 初期化
+    rowSuper.innerHTML = "";
+    rowRare.innerHTML = "";
+    rowCommon.innerHTML = "";
+    rowNormal.innerHTML = "";
 
+    // 分類して表示
     list.forEach(item => {
-        const d = document.createElement("div");
-        d.className = "collection-item";
-        d.innerHTML = `
-            <video src="${item.video_path}" width="140"></video>
-        `;
-        myCollectionContainer.appendChild(d);
+        const video = document.createElement("video");
+        video.src = item.video_path;
+        video.width = 140;
+        video.controls = true;
+
+        if (item.rarity === "superrare") rowSuper.appendChild(video);
+        else if (item.rarity === "rare") rowRare.appendChild(video);
+        else if (item.rarity === "common") rowCommon.appendChild(video);
+        else rowNormal.appendChild(video);
     });
 }
