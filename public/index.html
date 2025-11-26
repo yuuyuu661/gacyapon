@@ -1,19 +1,22 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ガチャポン</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ガチャポン管理サイト</title>
+
 <link rel="stylesheet" href="style.css">
+
 </head>
 <body>
+
 <header>
   <h1>ガチャポン管理サイト</h1>
   <div class="topbar">
     <nav id="tabs">
       <button data-tab="gacha">ガチャポン</button>
       <button data-tab="collection">マイコレクション</button>
-      <button data-tab="admin" class="admin-only">管理</button>
+      <button class="admin-only" data-tab="admin">管理</button>
     </nav>
     <div class="admin-actions">
       <button id="btn-admin-login">管理ログイン</button>
@@ -22,123 +25,117 @@
   </div>
 </header>
 
-<main>
+<!-- ▼ ガチャポン -->
+<div class="tab" id="tab-gacha">
+  <div class="gacha-center">
+    <div class="gacha-stage">
+      <img id="gacha-illust" src="assets/gachapon.png" alt="gachapon">
 
-  <!-- ▼ ガチャ -->
-  <section id="tab-gacha" class="tab active">
-    <div class="gacha-center">
-      <div class="gacha-stage">
-        <img id="gacha-illust" src="assets/gachapon.png" alt="gachapon">
-        <video id="rarity-anim" class="stage-video hidden" playsinline muted></video>
-        <video id="result-video" class="stage-video hidden" playsinline controls></video>
-      </div>
-      <button id="btn-roll" class="roll-btn">回す！</button>
-      <p>残り回数: <span id="spins">0</span></p>
+      <!-- rarity animation -->
+      <video id="rarity-anim" class="stage-video hidden" muted playsinline></video>
 
-      <div class="serial-inline">
-        <label class="field-label" for="serial">シリアル番号</label>
-        <input id="serial" inputmode="latin" placeholder="XXXX">
-        <button id="btn-redeem">回数追加</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ▼ コレクション -->
-  <section id="tab-collection" class="tab">
-    <h2>マイコレクション</h2>
-    <ul id="collection-list" class="collection"></ul>
-  </section>
-
-  <!-- ▼ 管理タブ -->
-  <section id="tab-admin" class="tab admin-only">
-    <h2>【管理】シリアル番号発行 & 景品入荷</h2>
-
-    <div class="grid-2">
-
-      <!-- ▼ シリアル発行 -->
-      <div class="card">
-        <h3>シリアル番号発行所</h3>
-        <div class="form-grid">
-          <div class="form-row">
-            <label for="serial-code">シリアル番号（空なら自動）</label>
-            <input id="serial-code" autocomplete="off">
-          </div>
-          <div class="form-row">
-            <label for="serial-spins">追加回数</label>
-            <input id="serial-spins" type="number" value="1" min="1">
-          </div>
-          <div class="form-row">
-            <button id="btn-issue-serial">発行</button>
-          </div>
-        </div>
-        <div id="serial-status"></div>
-        <h4>直近の一覧</h4>
-        <div class="scroll-rows">
-          <div id="serial-list"></div>
-        </div>
-      </div>
-
-      <!-- ▼ 景品入荷 -->
-      <div class="card">
-        <h3>景品入荷（動画アップロード）</h3>
-        <form id="form-prize" enctype="multipart/form-data">
-          <div class="form-grid">
-            <div class="form-row">
-              <label for="p-rarity">レアリティ</label>
-              <select id="p-rarity">
-                <option value="normal">normal</option>
-                <option value="common">common</option>
-                <option value="rare">rare</option>
-                <option value="superrare">superrare</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <label for="p-video">動画</label>
-              <input id="p-video" type="file" accept="video/*">
-            </div>
-            <div class="form-row">
-              <button type="submit">登録</button>
-            </div>
-          </div>
-        </form>
-      </div>
-
+      <!-- result video -->
+      <video id="result-video" class="stage-video hidden" controls playsinline></video>
     </div>
 
-    <!-- ▼ レアリティ確率設定 -->
-    <div class="card">
-      <h3>レアリティ確率設定</h3>
+    <button class="roll-btn" id="btn-roll">回す！</button>
+    <div>残り回数: <span id="spins">0</span></div>
+
+    <div class="serial-inline">
+      <label>シリアル番号</label>
+      <input type="text" id="serial" placeholder="XXXX">
+      <button id="btn-redeem">回数追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ▼ コレクション -->
+<div class="tab" id="tab-collection">
+  <h2>マイコレクション</h2>
+  <ul id="collection-list" class="collection"></ul>
+</div>
+
+<!-- ▼ 管理画面 -->
+<div class="tab" id="tab-admin">
+  <h2>【管理】 シリアル番号発行 ＆ 景品入荷</h2>
+
+  <div class="card">
+    <h3>シリアル番号発行所</h3>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>シリアル番号（空なら自動）</label>
+        <input type="text" id="serial-code">
+      </div>
+
+      <div class="form-row">
+        <label>追加回数</label>
+        <input type="number" id="serial-spins" value="1">
+      </div>
+
+      <button id="btn-issue-serial">発行</button>
+      <div id="serial-status" class="serial-status"></div>
+      <div class="scroll-rows" id="serial-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>景品入荷（動画アップロード）</h3>
+    <form id="form-prize">
       <div class="form-grid">
         <div class="form-row">
-          <label>normal (%)</label>
-          <input id="rw-normal" type="number" min="0" value="50">
+          <label>レアリティ</label>
+          <select id="p-rarity">
+            <option value="normal">normal</option>
+            <option value="common">common</option>
+            <option value="rare">rare</option>
+            <option value="superrare">superrare</option>
+          </select>
         </div>
         <div class="form-row">
-          <label>common (%)</label>
-          <input id="rw-common" type="number" min="0" value="30">
+          <label>動画</label>
+          <input type="file" id="p-video" accept="video/*">
         </div>
-        <div class="form-row">
-          <label>rare (%)</label>
-          <input id="rw-rare" type="number" min="0" value="15">
-        </div>
-        <div class="form-row">
-          <label>superrare (%)</label>
-          <input id="rw-superrare" type="number" min="0" value="5">
-        </div>
-        <div class="form-row">
-          <button id="btn-save-rarity">保存</button>
-        </div>
+
+        <button>登録</button>
       </div>
-      <p class="hint">※ 合計100である必要はありません（比率で抽選します）</p>
+    </form>
+
+    <h3>現在の一覧</h3>
+    <div id="prize-list"></div>
+  </div>
+
+  <div class="card">
+    <h3>レアリティ確率設定</h3>
+
+    <div class="form-grid">
+      <div>
+        <label>normal (%)</label>
+        <input id="rw-normal" type="number" value="50">
+      </div>
+
+      <div>
+        <label>common (%)</label>
+        <input id="rw-common" type="number" value="30">
+      </div>
+
+      <div>
+        <label>rare (%)</label>
+        <input id="rw-rare" type="number" value="15">
+      </div>
+
+      <div>
+        <label>superrare (%)</label>
+        <input id="rw-superrare" type="number" value="5">
+      </div>
+
+      <button id="btn-save-rarity">保存</button>
     </div>
 
-    <h3>登録済み景品</h3>
-    <div id="prize-list"></div>
+    <p>※ 合計100である必要はありません（比率で抽選します）</p>
+  </div>
 
-  </section>
+</div>
 
-</main>
-
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
