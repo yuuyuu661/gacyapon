@@ -25,6 +25,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'devsecret';
 const db = new Database(path.join(__dirname, 'data.sqlite'));
 db.pragma('journal_mode = WAL');
 
+/* 初期テーブル作成 */
 db.exec(`
 CREATE TABLE IF NOT EXISTS devices(
   device_id TEXT PRIMARY KEY,
@@ -62,7 +63,13 @@ CREATE TABLE IF NOT EXISTS rarity_weights(
   weight INTEGER DEFAULT 0
 );
 
-/* 初期値投入（なければ） */
+/* ▼ 特典動画（bonus） */
+CREATE TABLE IF NOT EXISTS bonus_video(
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  video_path TEXT
+);
+
+/* 初期レアリティ値 */
 INSERT OR IGNORE INTO rarity_weights(rarity, weight) VALUES
 ('normal', 50),
 ('common', 30),
@@ -220,7 +227,6 @@ app.get('/api/admin/rarity-weights', auth, (req, res)=>{
   res.json({ ok:true, data });
 });
 
-/* ---------- レアリティ確率 ---------- */
 app.post('/api/admin/rarity-weights/update', auth, (req, res)=>{
   const { normal, common, rare, superrare } = req.body;
 
@@ -236,10 +242,37 @@ app.post('/api/admin/rarity-weights/update', auth, (req, res)=>{
   db.prepare("UPDATE rarity_weights SET weight=? WHERE rarity='superrare'")
     .run(Number(superrare) || 0);
 
-  res.json({ ok: true });
+  res.json({ ok:true });
 });
 
-/* ---------- Public APIs ---------- */
+/* ---------- Bonus Video ---------- */
+app.post('/api/admin/bonus-video', auth, upload.single('video'), (req, res)=>{
+  if (!req.file) return res.status(400).json({ error:'video required' });
+
+  db.prepare(`
+    INSERT INTO bonus_video(id, video_path)
+    VALUES (1, ?)
+    ON CONFLICT(id) DO UPDATE SET video_path=excluded.video_path
+  `).run(req.file.filename);
+
+  res.json({ ok:true });
+});
+
+app.get('/api/bonus-video', (req, res)=>{
+  const row = db.prepare('SELECT video_path FROM bonus_video WHERE id=1').get();
+  if (!row) return res.json({ ok:false });
+  res.json({ ok:true, video_url:'/uploads/'+row.video_path });
+});
+
+/* ---------- 全景品取得（コンプリート用） ---------- */
+app.get('/api/all-prizes', (req, res)=>{
+  const all = db.prepare(`
+    SELECT id, video_path, rarity FROM prizes WHERE enabled=1
+  `).all();
+  res.json({ all });
+});
+
+/* ---------- デバイス ---------- */
 app.get('/api/device', (req, res)=>{
   const d = (req.query.deviceId || '').trim();
   if (!d) return res.status(400).json({ error:'deviceId required' });
@@ -250,10 +283,9 @@ app.get('/api/device', (req, res)=>{
   res.json({ spins: row?.spins ?? 0 });
 });
 
-/* ---------- 抽選ロジック（新方式） ---------- */
+/* ---------- 抽選ロジック ---------- */
 function pickRarity(){
   const rows = db.prepare('SELECT rarity, weight FROM rarity_weights').all();
-
   const total = rows.reduce((a,b)=> a+b.weight, 0);
   if (total <= 0) return 'normal';
 
@@ -274,51 +306,9 @@ function pickPrizeByRarity(rarity){
 
   if (!list.length) return null;
 
-  const idx = Math.floor(Math.random()*list.length);
-  return list[idx];
+  return list[Math.floor(Math.random()*list.length)];
 }
-/* ---------- Serial Redeem (回数追加) ---------- */
-app.post('/api/redeem-serial', (req, res) => {
-  const { code, deviceId } = req.body;
-  if (!code || !deviceId) {
-    return res.status(400).json({ error: 'code and deviceId required' });
-  }
 
-  const row = db.prepare(`SELECT * FROM serials WHERE code = ?`).get(code);
-  if (!row) {
-    return res.status(404).json({ error: 'invalid code' });
-  }
-
-  if (row.used) {
-    return res.status(400).json({ error: 'already used' });
-  }
-
-  const tx = db.transaction(() => {
-    // 1. 使用済みにする
-    db.prepare(`
-      UPDATE serials
-      SET used = 1,
-          used_by_device = ?,
-          used_at = datetime('now')
-      WHERE code = ?
-    `).run(deviceId, code);
-
-    // 2. デバイスの回数を増やす
-    db.prepare(`
-      INSERT OR IGNORE INTO devices(device_id, spins)
-      VALUES (?, 0)
-    `).run(deviceId);
-
-    db.prepare(`
-      UPDATE devices SET spins = spins + ?
-      WHERE device_id = ?
-    `).run(row.spins, deviceId);
-  });
-
-  tx();
-
-  res.json({ ok: true, added: row.spins });
-});
 /* ---------- Spin ---------- */
 app.post('/api/spin', (req, res)=>{
   const device = req.body.deviceId;
@@ -329,13 +319,8 @@ app.post('/api/spin', (req, res)=>{
   const dev = db.prepare('SELECT spins FROM devices WHERE device_id=?').get(device);
   if (dev.spins <= 0) return res.status(402).json({ error:'no spins left' });
 
-  /* 1. レアリティ抽選 */
   const rarity = pickRarity();
-
-  /* 2. そのレアの動画をランダム */
   let prize = pickPrizeByRarity(rarity);
-
-  /* なければ normal から補完 */
   if (!prize && rarity !== 'normal'){
     prize = pickPrizeByRarity('normal');
   }
@@ -351,11 +336,45 @@ app.post('/api/spin', (req, res)=>{
   res.json({
     ok:true,
     prize:{
+      id: prize.id,
       rarity: prize.rarity,
       video_url: '/uploads/'+prize.video_path,
       file: prize.video_path
     }
   });
+});
+
+/* ---------- シリアル回数追加 ---------- */
+app.post('/api/redeem-serial', (req, res)=>{
+  const { code, deviceId } = req.body;
+  if (!code || !deviceId)
+    return res.status(400).json({ error:'code & deviceId required' });
+
+  const row = db.prepare('SELECT * FROM serials WHERE code=?').get(code);
+  if (!row) return res.status(404).json({ error:'invalid code' });
+  if (row.used) return res.status(400).json({ error:'already used' });
+
+  const tx = db.transaction(()=>{
+    db.prepare(`
+      UPDATE serials
+      SET used=1, used_by_device=?, used_at=datetime('now')
+      WHERE code=?
+    `).run(deviceId, code);
+
+    db.prepare(`
+      INSERT OR IGNORE INTO devices(device_id, spins)
+      VALUES (?, 0)
+    `).run(deviceId);
+
+    db.prepare(`
+      UPDATE devices SET spins = spins + ?
+      WHERE device_id = ?
+    `).run(row.spins, deviceId);
+  });
+
+  tx();
+
+  res.json({ ok:true, added:row.spins });
 });
 
 /* ---------- Collection ---------- */
@@ -364,7 +383,7 @@ app.get('/api/my-collection', (req, res)=>{
   if (!d) return res.status(400).json({ error:'deviceId required' });
 
   const rows = db.prepare(`
-    SELECT p.video_path, p.rarity,
+    SELECT p.id, p.video_path, p.rarity,
            MAX(c.obtained_at) AS obtained_at,
            COUNT(*) AS owned_count
     FROM collections c
@@ -377,7 +396,7 @@ app.get('/api/my-collection', (req, res)=>{
   res.json(rows);
 });
 
-/* ---------- Download（強制保存） ---------- */
+/* ---------- Download ---------- */
 app.get('/download/:file', (req, res)=>{
   const f = req.params.file;
   if (f.includes('..') || f.includes('/') || f.includes('\\'))
