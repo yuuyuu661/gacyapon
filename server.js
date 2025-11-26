@@ -220,15 +220,23 @@ app.get('/api/admin/rarity-weights', auth, (req, res)=>{
   res.json({ ok:true, data });
 });
 
+/* ---------- レアリティ確率 ---------- */
 app.post('/api/admin/rarity-weights/update', auth, (req, res)=>{
   const { normal, common, rare, superrare } = req.body;
 
-  db.prepare('UPDATE rarity_weights SET weight=? WHERE rarity="normal"').run(Number(normal)||0);
-  db.prepare('UPDATE rarity_weights SET weight=? WHERE rarity="common"').run(Number(common)||0);
-  db.prepare('UPDATE rarity_weights SET weight=? WHERE rarity="rare"').run(Number(rare)||0);
-  db.prepare('UPDATE rarity_weights SET weight=? WHERE rarity="superrare"').run(Number(superrare)||0);
+  db.prepare("UPDATE rarity_weights SET weight=? WHERE rarity='normal'")
+    .run(Number(normal) || 0);
 
-  res.json({ ok:true });
+  db.prepare("UPDATE rarity_weights SET weight=? WHERE rarity='common'")
+    .run(Number(common) || 0);
+
+  db.prepare("UPDATE rarity_weights SET weight=? WHERE rarity='rare'")
+    .run(Number(rare) || 0);
+
+  db.prepare("UPDATE rarity_weights SET weight=? WHERE rarity='superrare'")
+    .run(Number(superrare) || 0);
+
+  res.json({ ok: true });
 });
 
 /* ---------- Public APIs ---------- */
