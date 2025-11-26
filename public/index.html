@@ -6,82 +6,81 @@
     <title>ガチャポン</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-<header>
-    <h1>🎁 ガチャポン</h1>
-</header>
-
-<nav>
-    <button onclick="openTab('gacha')">ガチャポン</button>
-    <button onclick="openTab('collection')">マイコレ</button>
-    <button onclick="openTab('admin')">管理</button>
-</nav>
-
-<!-- ======================
-     ガチャタブ
-======================= -->
-<div id="gacha" class="tab active">
-
-    <div class="counter">
-        <span>🔔 残り回数：</span>
-        <span id="spin-count">0</span>
+    <!-- ▼ 名前入力ポップアップ（初回のみ表示） -->
+    <div id="username-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h2 class="modal-title">あなたの名前を入力してください</h2>
+            <input type="text" id="username-input" placeholder="例：やまだ" class="modal-input" />
+            <button id="username-submit" class="modal-btn">OK</button>
+        </div>
     </div>
+    <!-- ▲ 名前入力ポップアップ -->
 
-    <div class="serial-box">
-        <input id="serial-input" placeholder="シリアルコードを入力" />
-        <button id="serial-btn" onclick="redeemSerial()">追加</button>
-    </div>
+    <header>
+        <h1 class="title">🎁 ガチャポン</h1>
+        <nav>
+            <button onclick="openTab('gacha')">ガチャポン</button>
+            <button onclick="openTab('collection')">マイコレ</button>
+            <button onclick="openTab('admin')">管理</button>
+        </nav>
+    </header>
 
-    <p id="remain-text">コンプリートまで残り 0 種類！</p>
+    <main>
+        <!-- ★ 各ページ（既存構造そのまま） -->
+        <section id="gacha-tab" class="tab">
+            <p>🔔 残り回数：<span id="spin-count">0</span></p>
+            <input id="serial-input" placeholder="シリアルコードを入力">
+            <button onclick="redeemSerial()">追加</button>
 
-    <div class="machine-area">
-        <img src="gachapon.png" class="machine-img" />
-    </div>
+            <p id="remain-types-text">コンプリートまで残り 0 種類！</p>
 
-    <div class="result-area">
-        <video id="result-video" controls></video>
-    </div>
+            <img src="gachapon.png" class="machine-img">
 
-    <div class="btn-area">
-        <button id="spin1-btn" onclick="spin(1)">回す！</button>
-        <button id="spin10-btn" onclick="spin(10)">10連で回す！</button>
-    </div>
+            <video id="result-video" controls></video>
 
-</div>
+            <div class="gacha-buttons">
+                <button onclick="spin()">回す！</button>
+                <button onclick="spin10()">10連で回す！</button>
+            </div>
+        </section>
 
-<!-- ======================
-     マイコレ
-======================= -->
-<div id="collection" class="tab hidden">
-    <h2>マイコレクション</h2>
-    <div id="my-collection"></div>
-</div>
+        <section id="collection-tab" class="tab hidden">
+            <h2>マイコレクション</h2>
+            <div id="collection-area">
+                <!-- 動的生成 -->
+            </div>
+        </section>
 
-<!-- ======================
-     管理タブ
-======================= -->
-<div id="admin" class="tab hidden">
+        <section id="admin-tab" class="tab hidden">
+            <h2>管理メニュー</h2>
 
-    <h2>管理メニュー</h2>
+            <div id="admin-login-area">
+                <input type="password" id="admin-pass" placeholder="パスワード">
+                <button onclick="adminLogin()">ログイン</button>
+            </div>
 
-    <div class="admin-login">
-        <input id="admin-pass" type="password" placeholder="パスワード">
-        <button onclick="adminLogin()">ログイン</button>
-    </div>
+            <div id="admin-menu" class="hidden">
+                <h3>景品登録</h3>
+                <input type="file" id="prize-file">
+                <select id="prize-rarity">
+                    <option value="superrare">SUPER RARE</option>
+                    <option value="rare">RARE</option>
+                    <option value="common">COMMON</option>
+                    <option value="normal">NORMAL</option>
+                </select>
+                <button onclick="registerPrize()">登録</button>
 
-    <div id="admin-panel" class="hidden">
-        <h3>回数付与</h3>
-        <input id="admin-user" placeholder="ユーザー名（例：やまだ）">
-        <input id="admin-add" type="number" placeholder="付与回数">
-        <button onclick="adminAddSpin()">追加</button>
+                <h3>追加：レア度毎に確率設定</h3>
+                <div id="rarity-rate-area"></div>
 
-        <h3>景品管理（準備中）</h3>
-    </div>
+                <h3>登録済み景品一覧</h3>
+                <div id="prize-list"></div>
+            </div>
+        </section>
+    </main>
 
-</div>
-
-<script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
