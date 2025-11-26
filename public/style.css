@@ -1,109 +1,102 @@
 body {
+    font-family: "Arial", sans-serif;
     margin: 0;
-    font-family: "Noto Sans JP", sans-serif;
-    background: #f8f8f8;
+    padding: 0;
+    background: #fafafa;
 }
 
-header {
-    background: #ffb74d;
-    padding: 15px;
-    text-align: center;
+/* ▼ タブ */
+.tab-container {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    background: #eee;
+}
+.tab-button {
+    padding: 10px 16px;
 }
 
-nav button {
-    margin: 0 10px;
-    padding: 10px 20px;
-    font-size: 16px;
-}
-
-.tab.hidden {
-    display: none;
-}
-
-.machine-img {
-    width: 300px;
-    display: block;
-    margin: 20px auto;
-}
-
-.gacha-buttons {
-    text-align: center;
-    margin: 20px;
-}
-
-.gacha-buttons button {
-    margin: 0 10px;
-    padding: 14px 25px;
-    border-radius: 10px;
-    font-size: 18px;
-    border: none;
-    cursor: pointer;
-    background: #ffa726;
-    color: white;
-}
-
-/* ▼▼ 名前入力モーダル ▼▼ */
-
-.modal-overlay {
+/* ▼ モーダル */
+.modal {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     background: rgba(0,0,0,0.45);
     display: flex;
     justify-content: center;
     align-items: center;
-    backdrop-filter: blur(3px);
-    animation: fadeIn 0.4s;
-    z-index: 9999;
+    z-index: 50;
+}
+.modal.hidden { display: none; }
+
+.modal-content {
+    background: #fff;
+    padding: 20px;
+    width: 80%;
+    max-width: 350px;
+    text-align: center;
+    border-radius: 14px;
+    animation: popin 0.25s ease-out;
+}
+@keyframes popin {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
 }
 
-.modal-overlay.hidden {
+/* ▼ タブ */
+.tab { padding: 15px; }
+.hidden { display: none; }
+
+/* ▼ ガチャ本体 */
+.gacha-wrapper {
+    position: relative;
+    width: 320px;
+    margin: 0 auto;
+}
+.gachapon-img {
+    width: 100%;
+}
+.gacha-video {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    border-radius: 8px;
+    display: none;
+    background: #000;
+}
+.gacha-thumb {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
     display: none;
 }
 
-.modal-box {
-    width: 300px;
-    background: white;
-    padding: 25px;
-    border-radius: 18px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-    text-align: center;
-    animation: popup 0.35s ease-out;
+/* ▼ コレクション */
+.rarity-block { margin-bottom: 20px; }
+.slider {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px;
 }
-
-.modal-title {
-    font-size: 18px;
-    margin-bottom: 15px;
-}
-
-.modal-input {
-    width: 90%;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-}
-
-.modal-btn {
-    margin-top: 15px;
-    background: #ff7043;
-    color: white;
+.slider img {
     width: 120px;
-    padding: 12px;
-    border-radius: 12px;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
+    height: 68px;
+    object-fit: cover;
+    border-radius: 6px;
 }
 
-@keyframes popup {
-    0% { transform: scale(0.6); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
-}
+/* レア度カラー */
+.superrare { border-left: 6px solid purple; }
+.rare      { border-left: 6px solid gold; }
+.common    { border-left: 6px solid silver; }
+.normal    { border-left: 6px solid peru; }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+/* ▼ Serial log */
+.serial-log {
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #ccc;
 }
