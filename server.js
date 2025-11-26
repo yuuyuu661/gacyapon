@@ -44,39 +44,34 @@ app.get("/api/spins", (req, res) => {
 // ====================
 // シリアルコード → 回数追加
 // ====================
-app.post("/api/redeem-serial", (req, res) => {
-  const { user, code } = req.body;
+app.post("/api/redeem-serial", async (req, res) => {
+    const { user, code } = req.body;
 
-  const db = loadDB();
+    if (!code || typeof code !== "string") {
+        return res.status(400).json({ error: "invalid serial" });
+    }
 
-  if (!db.users[user]) {
-    db.users[user] = {
-      spins: 0,
-      collection: []
-    };
-  }
+    const db = await loadDB();
+    const serial = db.serials.find(s => s.code === code);
 
-  // 仮で 1 回追加
-  db.users[user].spins += 1;
+    if (!serial) {
+        return res.status(400).json({ error: "invalid serial" });
+    }
 
-  saveDB(db);
+    if (serial.used) {
+        return res.status(400).json({ error: "already used" });
+    }
 
-  res.json({ ok: true });
+    serial.used = true;
+    serial.usedAt = Date.now();
+
+    const target = db.users[user] ?? (db.users[user] = { spins: 0 });
+    target.spins += serial.amount ?? 1;
+
+    await saveDB(db);
+
+    res.json({ success: true, spins: target.spins });
 });
-
-// ====================
-// ガチャ実行
-// ====================
-app.post("/api/spin", (req, res) => {
-  const { user } = req.body;
-  const db = loadDB();
-
-  if (!db.users[user]) {
-    db.users[user] = {
-      spins: 0,
-      collection: []
-    };
-  }
 
   // 回数チェック
   if (db.users[user].spins <= 0) {
