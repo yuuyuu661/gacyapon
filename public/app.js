@@ -115,7 +115,25 @@ async function updateRemain() {
     console.error("updateRemain error:", e);
   }
 }
+// =============================
+// タブ切り替え
+// =============================
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
 
+    // 全タブ非表示
+    document.querySelectorAll(".tab-page").forEach(p => p.style.display = "none");
+
+    // 対象のみ表示
+    document.getElementById(tab).style.display = "block";
+
+    // マイコレ開いたときは再読み込み
+    if (tab === "mycollection") {
+      loadMyCollection();
+    }
+  });
+});
 // =============================
 // シリアル → 回数追加
 // =============================
