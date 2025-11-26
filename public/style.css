@@ -1,187 +1,249 @@
-/* ============================
-   全体
-============================ */
+/* ==========================================================
+    基本
+========================================================== */
 body {
-  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  background: #f7f7f7;
-  margin: 0;
-  padding: 0;
-  text-align: center;
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    margin: 0;
+    background: #f6f6f6;
+    color: #333;
 }
 
-/* ============================
-   タブメニュー
-============================ */
-.tab-menu {
-  display: flex;
-  justify-content: center;
-  gap: 25px;
-  padding: 15px 0;
-  background: #eee;
-  border-bottom: 1px solid #ccc;
+header {
+    text-align: center;
+    padding: 12px 0;
+    background: #ffb24d;
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
 }
 
+/* タブ */
+.tab-buttons {
+    display: flex;
+    gap: 5px;
+    padding: 8px;
+    justify-content: center;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+}
 .tab-btn {
-  border: none;
-  padding: 10px 18px;
-  font-size: 18px;
-  background: #ddd;
-  border-radius: 6px;
-  cursor: pointer;
+    padding: 8px 16px;
+    border: 1px solid #aaa;
+    background: #eee;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.tab-btn.active {
+    background: #ffd27f;
+    border-color: #ffa726;
 }
 
-.tab-btn:hover {
-  background: #ccc;
+.tab-content {
+    display: none;
+    padding: 15px;
+}
+.tab-content.active {
+    display: block;
 }
 
-/* ============================
-   タブページ共通
-============================ */
-.tab-page {
-  padding: 20px;
+/* ==========================================================
+    ガチャポン
+========================================================== */
+
+/* ★★★ 残り回数を中央に揃える ★★★ */
+#gacha p {
+    text-align: center;
 }
 
-/* ============================
-   見出し
-============================ */
-.title {
-  font-size: 26px;
-  margin-bottom: 20px;
+/* ガチャ筐体 */
+.gacha-area {
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto;
+}
+.gacha-img {
+    width: 100%;
+    object-fit: contain;
+}
+#videoArea video {
+    width: 100%;
+    border-radius: 8px;
 }
 
-/* ============================
-   残り回数
-============================ */
-#spinCount {
-  font-size: 22px;
-  margin-bottom: 18px;
-  font-weight: bold;
+/* ガチャボタン */
+.spin-buttons {
+    margin-top: 15px;
+    text-align: center;
+}
+.spin-btn {
+    padding: 12px 20px;
+    font-size: 16px;
+    margin: 6px;
+    border-radius: 6px;
+    border: none;
+    background: #ffa200;
+    color: white;
+    font-weight: bold;
+}
+.spin-btn.pink {
+    background: #ff5fbf;
 }
 
-/* ============================
-   シリアル入力
-============================ */
-.add-serial-box {
-  margin-top: 10px;
+/* 回数追加 */
+.serial-box {
+    margin: 10px auto;
+    width: 100%;
+    max-width: 300px;
+    display: flex;
+    gap: 6px;
+}
+.serial-box input {
+    flex: 1;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+.serial-box button {
+    padding: 8px 14px;
+    background: #6fc9ff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
 }
 
-#serialInput {
-  width: 180px;
-  height: 32px;
-  padding: 5px;
+/* コンプリート */
+.complete-text {
+    text-align: center;
+    font-size: 16px;
+    margin: 10px 0;
 }
 
-#addSpinBtn {
-  height: 38px;
-  padding: 0 14px;
-  margin-left: 4px;
-  cursor: pointer;
+/* ==========================================================
+    マイコレ（4段スライド）
+========================================================== */
+
+.rarity-block {
+    margin: 15px 0;
+    padding: 12px;
+    border-radius: 10px;
 }
 
-/* ============================
-   ガチャ筐体
-============================ */
-#gachaImage {
-  width: 320px;
-  max-width: 85%;
-  margin-top: 20px;
-  user-select: none;
-  -webkit-user-drag: none;
+/* 枠色 */
+.super-block { border: 3px solid #b700ff44; background: #f7e5ff; }
+.rare-block  { border: 3px solid #ffcc0066; background: #fff7d9; }
+.common-block { border: 3px solid #bbbbbb66; background: #f4f4f4; }
+.normal-block { border: 3px solid #cd7f3266; background: #faeee1; }
+
+.rarity-title {
+    font-size: 17px;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+.super-title  { color: #a200ff; }
+.rare-title   { color: #c49100; }
+.common-title { color: #7a7a7a; }
+.normal-title { color: #bb6f18; }
+
+/* 横スクロール */
+.rarity-row {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 5px;
 }
 
-/* ============================
-   演出 / 景品動画（筐体の下に表示する旧仕様）
-============================ */
-#effectVideo,
-#prizeVideo {
-  width: 320px;
-  max-width: 85%;
-  margin-top: 20px;
-  display: none;
-  border-radius: 10px;
-  background: #000;
+.thumb-video {
+    width: 120px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
 }
 
-#duplicateImg {
-  width: 320px;
-  max-width: 85%;
-  margin-top: 20px;
-  display: none;
-  border-radius: 10px;
+.thumb-video-large {
+    width: 100%;
+    border-radius: 8px;
 }
 
-/* ============================
-   ボタン
-============================ */
-.gacha-btn-area {
-  margin-top: 25px;
-  display: flex;
-  justify-content: center;
-  gap: 25px;
+/* ==========================================================
+    管理画面
+========================================================== */
+
+.admin-auth {
+    text-align: center;
+    margin: 10px 0;
+}
+.admin-auth input {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    width: 180px;
+}
+.admin-auth button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: #ffa200;
+    color: white;
+    border: none;
+    margin-left: 6px;
 }
 
-.gacha-btn-area button {
-  font-size: 18px;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 6px;
-  background: #ffc400;
-  cursor: pointer;
+.admin-section {
+    background: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
 }
 
-.gacha-btn-area button:hover {
-  background: #e6b100;
+.rate-box label {
+    display: block;
+    margin-bottom: 6px;
+}
+.rate-box input {
+    width: 80px;
+    padding: 6px;
+    border-radius: 5px;
+    border: 1px solid #aaa;
 }
 
-/* ============================
-   マイコレ
-============================ */
-.collection-item {
-  width: 280px;
-  background: white;
-  margin: 0 auto 20px;
-  padding: 12px;
-  border-radius: 12px;
-  box-shadow: 0px 0 8px rgba(0, 0, 0, 0.1);
+.prize-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.prize-card {
+    width: 150px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 6px;
+    text-align: center;
+}
+.prize-card video {
+    width: 100%;
+    border-radius: 6px;
 }
 
-.collection-thumb {
-  width: 100%;
-  border-radius: 10px;
-  cursor: pointer;
+/* シリアルログ */
+.serial-log {
+    max-height: 200px;
+    overflow-y: auto;
+}
+.serial-log div {
+    padding: 6px;
+    border-bottom: 1px solid #ddd;
 }
 
-/* ============================
-   管理ページ
-============================ */
-.admin-pass-box {
-  margin-top: 20px;
-}
-
-#adminContent {
-  margin-top: 30px;
-}
-
-#prizeList img {
-  width: 100px;
-  margin: 5px;
-  border-radius: 8px;
-}
-
-/* ============================
-   スマホ対応
-============================ */
+/* ==========================================================
+    スマホ最適化
+========================================================== */
 @media (max-width: 480px) {
-  #gachaImage {
-    width: 260px;
-  }
-  #effectVideo,
-  #prizeVideo,
-  #duplicateImg {
-    width: 260px;
-  }
-  .gacha-btn-area {
-    flex-direction: column;
-    gap: 18px;
-  }
+    .thumb-video {
+        width: 100px;
+        height: 68px;
+    }
+    .gacha-area {
+        max-width: 300px;
+    }
+    .spin-btn {
+        width: 140px;
+    }
 }
