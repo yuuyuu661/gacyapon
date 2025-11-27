@@ -26,14 +26,6 @@
   </div>
 </header>
 
-<!-- ▼ 管理ログインフォーム -->
-<div id="admin-login-area" class="card" style="max-width:400px; margin:12px auto;">
-  <h3>管理ログイン</h3>
-  <input id="admin-pass" type="password" placeholder="管理パスワード" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
-  <button id="btn-login-admin" style="width:100%;">ログイン</button>
-</div>
-
-
 <!-- ▼ ガチャポン -->
 <div class="tab" id="tab-gacha">
   <div class="gacha-center">
@@ -69,19 +61,18 @@
   <ul id="collection-list" class="collection"></ul>
 </div>
 
-<!-- ▼ 管理画面（ログイン後表示） -->
+<!-- ▼ 管理画面（ログイン後のみ表示） -->
 <div class="tab" id="tab-admin">
 
-  <div class="card">
+  <div class="card admin-only">
     <h3>特典動画アップロード</h3>
     <form id="form-bonus">
       <input type="file" id="bonus-video" accept="video/*" />
       <button>保存</button>
     </form>
-    <div id="bonus-status"></div>
   </div>
 
-  <div class="card">
+  <div class="card admin-only">
     <h3>シリアル番号発行</h3>
     <div class="form-grid">
       <input type="text" id="serial-code" placeholder="空なら自動生成">
@@ -92,7 +83,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card admin-only">
     <h3>景品入荷（動画）</h3>
     <form id="form-prize">
       <select id="p-rarity">
@@ -108,7 +99,7 @@
     <div id="prize-list"></div>
   </div>
 
-  <div class="card">
+  <div class="card admin-only">
     <h3>レアリティ確率設定</h3>
     <input id="rw-normal" type="number" value="50">
     <input id="rw-common" type="number" value="30">
