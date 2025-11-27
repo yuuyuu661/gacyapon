@@ -1,5 +1,6 @@
 /* =========================================================
    app.js（レアリティ抽選対応版 / タイトル・確率廃止版）
+   ＋ 10連ガチャ ＋ かぶり2秒再生
    ========================================================= */
 
 const $ = (sel) => document.querySelector(sel);
@@ -137,7 +138,9 @@ async function loadSpins(){
 }
 loadSpins();
 
-/* ---------- Roll Gacha ---------- */
+/* =========================================================
+    1回ガチャ
+   ========================================================= */
 $('#btn-roll').addEventListener('click', async ()=>{
   stopStageVideos();
 
@@ -183,6 +186,100 @@ $('#btn-roll').addEventListener('click', async ()=>{
       illust.classList.remove('hidden');
     };
   };
+});
+
+/* =========================================================
+    ★★★ 10回ガチャ（かぶりは2秒再生）★★★
+   ========================================================= */
+
+document.getElementById('btn-roll10').addEventListener('click', async () => {
+
+  const spins = Number(document.getElementById('spins').textContent);
+  if (spins < 10) {
+    alert('回数が足りません');
+    return;
+  }
+
+  document.getElementById('btn-roll').disabled = true;
+  document.getElementById('btn-roll10').disabled = true;
+
+  for (let i = 0; i < 10; i++) {
+    stopStageVideos();
+
+    const res = await api('/api/spin', {
+      method: 'POST',
+      body: JSON.stringify({ deviceId })
+    });
+
+    if (!res.ok) {
+      alert(res.error || '失敗しました');
+      break;
+    }
+
+    await loadSpins();
+
+    const rarity = res.prize.rarity;
+    const anim = $('#rarity-anim');
+    const result = $('#result-video');
+    const illust = $('#gacha-illust');
+
+    /* --- 演出 --- */
+    const sfx = new Audio(`sfx/${rarity}.mp3`);
+    anim.src = `animations/${rarity}.mp4`;
+
+    illust.classList.add('hidden');
+    anim.classList.remove('hidden');
+    anim.currentTime = 0;
+    anim.muted = false;
+
+    try { await anim.play(); } catch {}
+    setTimeout(() => { sfx.play().catch(()=>{}); }, 300);
+
+    await new Promise(resolve => {
+      anim.onended = () => {
+        anim.classList.add('hidden');
+        try { sfx.pause(); sfx.currentTime = 0; } catch {}
+        resolve();
+      };
+    });
+
+    /* --- かぶり判定 --- */
+    const owned = await api(`/api/my-collection?deviceId=${deviceId}`);
+    const ownedIds = owned.map(x => x.id);
+    const isNew = !ownedIds.includes(res.prize.id);
+
+    if (isNew) {
+      /* --- フル再生 --- */
+      result.src = res.prize.video_url;
+      result.classList.remove('hidden');
+      result.currentTime = 0;
+
+      await new Promise(resolve => {
+        result.onended = () => {
+          result.classList.add('hidden');
+          resolve();
+        };
+        result.play().catch(resolve);
+      });
+
+    } else {
+      /* --- かぶりは2秒だけ再生 --- */
+      result.src = res.prize.video_url;
+      result.classList.remove('hidden');
+      result.currentTime = 0;
+
+      result.play().catch(()=>{});
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      result.pause();
+      result.classList.add('hidden');
+    }
+
+    illust.classList.remove('hidden');
+  }
+
+  document.getElementById('btn-roll').disabled = false;
+  document.getElementById('btn-roll10').disabled = false;
 });
 
 /* ---------- Serial Redeem ---------- */
