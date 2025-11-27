@@ -586,3 +586,47 @@ async function loadCollection(){
     list.appendChild(li);
   });
 }
+/* =========================================================
+   コンプリート状況の更新
+   ========================================================= */
+async function updateCompleteStatus() {
+  const collection = await api(`/api/my-collection?deviceId=${deviceId}`);
+  const prizeData = await api(`/api/admin/prizes/all-lite`); 
+  //  ← これは server.js側で “動画パスと有効フラグだけ返すAPI” を1つ作るとベスト
+  // 既存 /api/admin/prizes を使ってもOK（動画本体パスだけ使う）
+
+  if (!Array.isArray(collection) || !Array.isArray(prizeData)) return;
+
+  // 登録されている景品の "video_path" 一覧
+  const allPrizes = prizeData.filter(p => p.enabled).map(p => p.video_path);
+
+  // コレクションにある video_path の一覧
+  const owned = collection.map(c => c.video_path);
+
+  // 未取得
+  const missing = allPrizes.filter(file => !owned.includes(file));
+
+  const statusEl = document.getElementById("complete-status");
+  const bonusBtn = document.getElementById("btn-bonus");
+
+  // 未取得数
+  const remain = missing.length;
+
+  if (remain === 0) {
+    // ⭐ コンプリート
+    statusEl.textContent = "コンプリートおめでとう！！特別景品をプレゼントするね！";
+    statusEl.className = "complete-status complete-gold";
+
+    bonusBtn.classList.remove("hidden");
+  } else {
+    // 通常
+    statusEl.textContent = `コンプリートまであと ${remain} 種類！`;
+    bonusBtn.classList.add("hidden");
+
+    if (remain <= 10) {
+      statusEl.className = "complete-status complete-red";
+    } else {
+      statusEl.className = "complete-status complete-black";
+    }
+  }
+}
