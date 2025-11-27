@@ -572,7 +572,7 @@ async function loadCollection(){
 
     const btn = document.createElement('button');
     btn.className = 'secondary';
-    btn.textText = '保存';
+    btn.textContent = '保存';
 
     btn.addEventListener('click', async ()=>{
       const url = `/download/${encodeURIComponent(r.video_path)}`;
