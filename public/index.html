@@ -11,18 +11,28 @@
 
 <header>
   <h1>ガチャポン管理サイト</h1>
+
   <div class="topbar">
     <nav id="tabs">
       <button data-tab="gacha">ガチャポン</button>
       <button data-tab="collection">マイコレクション</button>
       <button class="admin-only" data-tab="admin">管理</button>
     </nav>
+
     <div class="admin-actions">
       <button id="btn-admin-login">管理ログイン</button>
       <button id="btn-admin-logout" class="hidden">ログアウト</button>
     </div>
   </div>
 </header>
+
+<!-- ▼ 管理ログインフォーム -->
+<div id="admin-login-area" class="card" style="max-width:400px; margin:12px auto;">
+  <h3>管理ログイン</h3>
+  <input id="admin-pass" type="password" placeholder="管理パスワード" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
+  <button id="btn-login-admin" style="width:100%;">ログイン</button>
+</div>
+
 
 <!-- ▼ ガチャポン -->
 <div class="tab" id="tab-gacha">
@@ -59,7 +69,7 @@
   <ul id="collection-list" class="collection"></ul>
 </div>
 
-<!-- ▼ 管理画面 -->
+<!-- ▼ 管理画面（ログイン後表示） -->
 <div class="tab" id="tab-admin">
 
   <div class="card">
