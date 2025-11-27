@@ -572,35 +572,47 @@ $("#btn-save-rarity").addEventListener("click", async()=>{
   alert(j.ok?"保存した！":j.error);
 });
 
-/* =========================================================
-   コレクション
-========================================================= */
+/* ---------- コレクション ---------- */
 async function loadCollection(){
-  const list = $("#collection-list");
-  list.innerHTML = "<li>読み込み中...</li>";
+  const superUl = $("#col-superrare");
+  const rareUl  = $("#col-rare");
+  const commUl  = $("#col-common");
+  const normUl  = $("#col-normal");
+
+  superUl.innerHTML = rareUl.innerHTML = commUl.innerHTML = normUl.innerHTML = "読み込み中...";
 
   const rows = await api(`/api/my-collection?deviceId=${deviceId}`);
+
+  superUl.innerHTML = "";
+  rareUl.innerHTML = "";
+  commUl.innerHTML = "";
+  normUl.innerHTML = "";
+
   if (!rows.length){
-    list.innerHTML = "<li>まだありません</li>";
+    superUl.innerHTML = rareUl.innerHTML = commUl.innerHTML = normUl.innerHTML =
+      "<li>なし</li>";
     return;
   }
 
-  list.innerHTML = "";
   rows.forEach(r=>{
     const li = document.createElement("li");
+    li.innerHTML = `
+      <div class="meta">${r.rarity} / ${r.obtained_at}</div>
+      <video src="/uploads/${r.video_path}" controls></video>
+      <button class="secondary save-btn">保存</button>
+    `;
 
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    meta.textContent = `${r.rarity} / ${r.obtained_at}`;
+    li.querySelector(".save-btn").addEventListener("click", ()=>{
+      location.href = `/download/${encodeURIComponent(r.video_path)}`;
+    });
 
-    const v = document.createElement("video");
-    v.src = `/uploads/${r.video_path}`;
-    v.controls = true;
-
-    li.append(meta, v);
-    list.appendChild(li);
+    if (r.rarity === "superrare") superUl.appendChild(li);
+    else if (r.rarity === "rare") rareUl.appendChild(li);
+    else if (r.rarity === "common") commUl.appendChild(li);
+    else normUl.appendChild(li);
   });
 }
+
 
 /* initial load */
 loadSpins();
