@@ -1,6 +1,10 @@
 /* =========================================================
-   app.js（レアリティ抽選対応版 / タイトル・確率廃止版）
-   ＋ 10連ガチャ ＋ かぶり2秒再生
+   app.js（最新版）
+   ・レアリティ抽選
+   ・管理ログイン（prompt）
+   ・10連ガチャ
+   ・かぶりは2秒スキップ
+   ・初獲得はフル再生
    ========================================================= */
 
 const $ = (sel) => document.querySelector(sel);
@@ -96,11 +100,6 @@ async function adminToken(){
     return null;
   }
 
-  if (r.status === 404){
-    alert('404: /api/admin/login が見つかりません');
-    return null;
-  }
-
   const j = await safeJson(r);
   if (!r.ok || !j.token){
     alert(j.error || '認証失敗');
@@ -125,12 +124,6 @@ function adminLogout(){
 $('#btn-admin-login').addEventListener('click', adminToken);
 $('#btn-admin-logout').addEventListener('click', adminLogout);
 
-if (sessionStorage.getItem('adminToken')){
-  document.body.classList.add('admin-visible');
-  $('#btn-admin-login').classList.add('hidden');
-  $('#btn-admin-logout').classList.remove('hidden');
-}
-
 /* ---------- Spins ---------- */
 async function loadSpins(){
   const j = await api(`/api/device?deviceId=${encodeURIComponent(deviceId)}`);
@@ -139,7 +132,7 @@ async function loadSpins(){
 loadSpins();
 
 /* =========================================================
-    1回ガチャ
+   1回ガチャ
    ========================================================= */
 $('#btn-roll').addEventListener('click', async ()=>{
   stopStageVideos();
@@ -189,7 +182,7 @@ $('#btn-roll').addEventListener('click', async ()=>{
 });
 
 /* =========================================================
-    ★★★ 10回ガチャ（かぶりは2秒再生）★★★
+   ★★★ 10回ガチャ（かぶり2秒・初回フル再生）★★★
    ========================================================= */
 
 document.getElementById('btn-roll10').addEventListener('click', async () => {
@@ -204,8 +197,10 @@ document.getElementById('btn-roll10').addEventListener('click', async () => {
   document.getElementById('btn-roll10').disabled = true;
 
   for (let i = 0; i < 10; i++) {
+
     stopStageVideos();
 
+    /* --- 抽選 --- */
     const res = await api('/api/spin', {
       method: 'POST',
       body: JSON.stringify({ deviceId })
@@ -243,13 +238,13 @@ document.getElementById('btn-roll10').addEventListener('click', async () => {
       };
     });
 
-    /* --- かぶり判定 --- */
-    const owned = await api(`/api/my-collection?deviceId=${deviceId}`);
-    const ownedIds = owned.map(x => x.id);
-    const isNew = !ownedIds.includes(res.prize.id);
+    /* --- 最新のマイコレでかぶり判定 --- */
+    let owned = await api(`/api/my-collection?deviceId=${deviceId}`);
+    let ownedIds = owned.map(x => x.id);
+    let isNew = !ownedIds.includes(res.prize.id);
 
+    /* --- 初獲得：フル再生 --- */
     if (isNew) {
-      /* --- フル再生 --- */
       result.src = res.prize.video_url;
       result.classList.remove('hidden');
       result.currentTime = 0;
@@ -263,7 +258,8 @@ document.getElementById('btn-roll10').addEventListener('click', async () => {
       });
 
     } else {
-      /* --- かぶりは2秒だけ再生 --- */
+
+      /* --- かぶり：2秒だけ再生 --- */
       result.src = res.prize.video_url;
       result.classList.remove('hidden');
       result.currentTime = 0;
@@ -275,6 +271,7 @@ document.getElementById('btn-roll10').addEventListener('click', async () => {
       result.classList.add('hidden');
     }
 
+    /* 次へ */
     illust.classList.remove('hidden');
   }
 
@@ -307,6 +304,7 @@ async function loadSerials(){
   if (!token){ wrap.innerHTML = '管理者ログインが必要です'; return; }
 
   const r = await fetch('/api/admin/serials',{ headers:{'Authorization':'Bearer '+token} });
+
   if (r.status === 404){
     wrap.innerHTML = '404: /api/admin/serials がありません';
     return;
@@ -404,6 +402,7 @@ async function renderPrizeList(){
   if (!token){ wrap.innerHTML = 'ログイン必要'; return; }
 
   const r = await fetch('/api/admin/prizes',{ headers:{'Authorization':'Bearer '+token} });
+
   if (r.status === 404){
     wrap.innerHTML = '404: /api/admin/prizes が見つかりません';
     return;
@@ -572,7 +571,7 @@ async function loadCollection(){
 
     const btn = document.createElement('button');
     btn.className = 'secondary';
-    btn.textContent = '保存';
+    btn.textText = '保存';
 
     btn.addEventListener('click', async ()=>{
       const url = `/download/${encodeURIComponent(r.video_path)}`;
