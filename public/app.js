@@ -353,6 +353,35 @@ async function loadSerials(){
   wrap.innerHTML = "";
   wrap.appendChild(table);
 }
+/* =========================================================
+   ★ シリアル番号 発行
+========================================================= */
+$("#btn-issue-serial").addEventListener("click", async ()=>{
+  const code = $("#serial-code").value.trim();
+  const spins = Number($("#serial-spins").value) || 1;
+
+  const token = await adminToken();
+  if (!token) return;
+
+  const r = await fetch("/api/admin/serials/issue",{
+    method:"POST",
+    headers:{
+      Authorization: "Bearer "+token,
+      "Content-Type":"application/json"
+    },
+    body: JSON.stringify({ code, spins })
+  });
+
+  const j = await safeJson(r);
+
+  if (j.ok){
+    $("#serial-status").textContent = `発行: ${j.code}（${j.spins}回）`;
+    $("#serial-code").value = j.code; // 自動生成時も反映
+    loadSerials();
+  }else{
+    $("#serial-status").textContent = j.error;
+  }
+});
 
 /* =========================================================
    景品 Upload
