@@ -182,7 +182,7 @@ $('#btn-roll').addEventListener('click', async ()=>{
 });
 
 /* =========================================================
-   ★★★ 10回ガチャ（かぶり2秒・初回フル再生）★★★
+   ★★★ 修正版：10回ガチャ（初回はフル再生 / かぶりは2秒）★★★
    ========================================================= */
 
 document.getElementById('btn-roll10').addEventListener('click', async () => {
@@ -200,7 +200,7 @@ document.getElementById('btn-roll10').addEventListener('click', async () => {
 
     stopStageVideos();
 
-    /* --- 抽選 --- */
+    /* --- 抽選（スピン時点で DB へコレクション追加される） --- */
     const res = await api('/api/spin', {
       method: 'POST',
       body: JSON.stringify({ deviceId })
@@ -211,6 +211,7 @@ document.getElementById('btn-roll10').addEventListener('click', async () => {
       break;
     }
 
+    // 回数更新
     await loadSpins();
 
     const rarity = res.prize.rarity;
@@ -238,46 +239,46 @@ document.getElementById('btn-roll10').addEventListener('click', async () => {
       };
     });
 
-    /* --- 最新のマイコレでかぶり判定 --- */
-    let owned = await api(`/api/my-collection?deviceId=${deviceId}`);
-    let ownedIds = owned.map(x => x.id);
-    let isNew = !ownedIds.includes(res.prize.id);
+    /* --- 🔥 ここで DB 更新後の最新マイコレを取得する --- */
+    const collection = await api(`/api/my-collection?deviceId=${deviceId}`);
 
-    /* --- 初獲得：フル再生 --- */
-    if (isNew) {
-      result.src = res.prize.video_url;
-      result.classList.remove('hidden');
-      result.currentTime = 0;
+    // この video_path がコレクションの中に何件あるかを調べる
+    const ownedCount = collection.filter(p => p.video_path === res.prize.file).length;
 
+    // ownedCount が 1 → 今入ったばかりの最初の1個＝初回
+    // ownedCount が 2以上 → すでに持っていた＝かぶり
+    const isDuplicate = ownedCount >= 2;
+
+
+    /* --- 初回フル再生 or かぶり2秒再生 --- */
+
+    result.src = res.prize.video_url;
+    result.classList.remove('hidden');
+    result.currentTime = 0;
+    result.play().catch(()=>{});
+
+    if (isDuplicate) {
+      // ⭐ かぶり：2秒だけ再生
+      await new Promise(r => setTimeout(r, 2000));
+      result.pause();
+      result.classList.add('hidden');
+    } else {
+      // ⭐ 初回：フル再生
       await new Promise(resolve => {
         result.onended = () => {
           result.classList.add('hidden');
           resolve();
         };
-        result.play().catch(resolve);
       });
-
-    } else {
-
-      /* --- かぶり：2秒だけ再生 --- */
-      result.src = res.prize.video_url;
-      result.classList.remove('hidden');
-      result.currentTime = 0;
-
-      result.play().catch(()=>{});
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      result.pause();
-      result.classList.add('hidden');
     }
 
-    /* 次へ */
     illust.classList.remove('hidden');
   }
 
   document.getElementById('btn-roll').disabled = false;
   document.getElementById('btn-roll10').disabled = false;
 });
+
 
 /* ---------- Serial Redeem ---------- */
 $('#btn-redeem').addEventListener('click', async ()=>{
